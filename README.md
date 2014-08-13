@@ -44,13 +44,13 @@ The options are as follows:
   
 >__-d__	Save any options provided via the command line to the configuration file and do not update DNS.
 
->__-k __ *API Key*
+>__-k__ *API Key*
 >> Dreamhost API Key with dns-list\_records, dns-remove\_record, and dns-add\_record permissions.
 
 >__-r__ *Record*
 >> The DNS Record to be updated.
 
->__i__ *IP Address
+>__i__ *IP Address*
 >> Specify the IPv4 Address to update the Record to.  If no address is specified, the utility will use __dig__ to obtain the current public IPv4 Address of your computer.
 
 >__L__ *(true/false)*
