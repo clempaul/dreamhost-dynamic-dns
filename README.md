@@ -44,6 +44,8 @@ The options are as follows:
   
 >__-d__	Save any options provided via the command line to the configuration file and do not update DNS.
 
+>__-v__ Enable verbose mode. 
+
 >__-k__ *API Key*
 >> Dreamhost API Key with dns-list\_records, dns-remove\_record, and dns-add\_record permissions.
 
