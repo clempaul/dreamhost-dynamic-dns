@@ -8,21 +8,225 @@
 # Copyright (c) 2013, Paul Clement
 # All rights reserved.
 #
+# Additional changes and updates as noted via https://github.com/jgabello/dreamhost-dynamic-dns Copyright (c) 2014, Contributing Author
 # See LICENSE for more details.
 
-if [ -f ~/.config/dynamicdns ]; then
-  source ~/.config/dynamicdns
+function usage {
+	echo 'usage:   dynamicdns.bash [-Sdv][-k API Key] [-r Record] [-i New IP Address] [-L Logging (true/false)]'
+}
+
+function createConfigurationFile {
+
+	if [ ! -d $HOME/.config ]; then
+		echo "$HOME/.config/ does not exist, creating directory."
+		mkdir $HOME/.config
+	fi
+	
+echo '# Dreamhost Dynamic DNS Updater Configuration file.  This file
+# allows you to set the basic parameters to update Dreamhost
+# dynamic dns without command line options.
+# There are three basic parameters:
+#
+# KEY
+# This parameter is your Dreamhost API Key.  The parameter should
+# be specified as a STRING.  Your API KEY must be given the the
+# following permissions in the Dreamhost webpanel:
+# - dns-list_records
+# - dns-remove_record
+# - dns-add_record
+
+KEY=
+
+# RECORD
+# This parameter specifies which DNS A record you wish to update
+# with this script.
+
+RECORD=
+
+# LOGGING
+# Logging enables script output to the system log in OSX or Linux
+# This parameter accepts a BOOLEAN.  By default this parameter is
+# set to "true".
+#
+	  
+LOGGING=true
+
+' >> $HOME/.config/dynamicdns
+
+return 0
+}
+
+function logStatus {
+	local LEVEL=$1
+	local MESSAGE=$2
+	if [ $LOGGING = "true" ]; then
+		if [ $LEVEL = "error" ]; then
+			logger -p syslog.err -t "dynamicdns.bash" "$MESSAGE"
+		elif [ $LEVEL = "notice" ]; then
+			logger -p syslog.notice -t "dynamicdns.bash" "$MESSAGE"
+		elif [ $LEVEL = "alert" ]; then
+			logger -p syslog.alert -t "dynamicdns.bash" "$MESSAGE"
+		fi
+	fi
+	if [ $VERBOSE = "true" ]; then
+		echo "dynamicdns.bash $MESSAGE"
+	fi
+	return 0
+}
+
+function saveConfiguration {
+	if [ -n "$1" ]; then
+		sed -i "" -e "s/^KEY=.*$/KEY=$1/" $HOME/.config/dynamicdns
+		if [ $VERBOSE = "true" ]; then
+			echo "Saving KEY to configuration file"
+		fi
+	fi
+
+	if [ -n "$2" ]; then
+		sed -i "" -e "s/^RECORD=.*$/RECORD=$2/" $HOME/.config/dynamicdns
+		if [ $VERBOSE = "true" ]; then
+			echo "Saving RECORD to configuration file"
+		fi
+		
+	fi
+	if [ -n "$3" ]; then
+		sed -i "" -e "s/^LOGGING=.*$/LOGGING=$3/" $HOME/.config/dynamicdns
+		if [ $VERBOSE = "true" ]; then
+			echo "Saving LOGGING to configuration file"
+		fi
+	fi
+	return 0
+}
+
+VERBOSE="false"
+#Get Command Line Options
+while getopts "L:i:k:r:Sdv" OPTS
+do
+	case $OPTS in
+		L)
+		if ! ([ "$OPTARG" == "true" ] || [ "$OPTARG" == "false" ])  ; then
+			echo `basename $0` " Invalid Parameters -- L"
+			logStatus "error" "Invalid Parameters -- L"
+			usage
+			exit 1
+		fi
+		
+		OPTLOGGING=$OPTARG
+		;;
+		
+		v)
+		VERBOSE="true"
+		;;
+		
+		k)
+		OPTKEY=$OPTARG
+		;;
+		
+		r)
+		OPTRECORD=$OPTARG
+		;;
+		
+		i)
+			if [[ $OPTARG =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]];
+			then
+				OPTIP=$OPTARG
+			else
+				echo `basename $0` " Invalid Parameters -- i"
+				logStatus "error" "Invalid Parameters -- i"
+				usage
+				exit 1
+			fi
+		;;
+		
+		S)
+		SAVE="true"
+		;;
+		
+		d)
+		SAVEONLY="true"
+		;;
+		
+		?)
+		usage
+		exit 1
+		;;
+	esac
+done
+
+#Check for Configuration File
+
+if [ ! -f ~/.config/dynamicdns ]; then
+	logStatus "notice" "Configuration File Not Found. Creating new configuration file."
+	createConfigurationFile
 fi
 
-if [ "$KEY" == "" ]; then
-  echo "Missing KEY configuration option"
-  exit 100
+# Load Configuration File
+
+source ~/.config/dynamicdns
+
+# check for dependencies, if wget not available, test for curl, set variable to be used to test this later
+if command -v wget >/dev/null 2>&1; then
+	POSTPROCESS="wget"
+	
+elif command -v curl >/dev/null 2>&1; then
+	POSTPROCESS="curl"
+	
+else
+	echo `basename $0` "ERROR: Missing dependency -- wget or curl"
+	logStatus "error" "Missing Dependency -- wget or curl"
+	exit 1
+fi
+if [ $VERBOSE = "true" ]; then
+	echo "Post process set to: $POSTPROCESS"
 fi
 
-if [ "$RECORD" == "" ]; then
-  echo "Missing RECORD configuration option"
-  exit 101
+if [ ! -n "$OPTKEY" ]; then
+	if [ ! -n "$KEY" ]; then
+		echo "dynamicdns.bash: missing parameter -- KEY"
+		logStatus "error" "Missing Parameter -- KEY"
+		usage
+		exit 1
+	fi
+else KEY="$OPTKEY"
 fi
+
+if [ ! -n "$OPTRECORD" ]; then
+	if [ ! -n "$RECORD" ]; then
+		echo "dynamicdns.bash: missing parameter -- RECORD"
+		logStatus "error" "Missing Parameter -- RECORD"
+		usage
+ 	exit 1
+	fi
+else RECORD="$OPTRECORD"
+fi
+
+if [ $VERBOSE = "true" ]; then
+	echo "Using API Key: $KEY"
+	echo "Updating RECORD: $RECORD"
+fi
+
+if [ "$SAVE" == "true" ] || [ "$SAVEONLY" == "true" ]; then
+	saveConfiguration "$OPTKEY" "$OPTRECORD" "$OPTLOGGING"
+fi
+
+if [ "$SAVEONLY" == "true" ]; then
+	if [ $VERBOSE = "true" ]; then
+		echo "Saving Configuration File and Exiting"
+	fi
+	exit 0
+fi
+
+if [ -n $OPTIP ]; then
+	if [ $VERBOSE = "true" ]; then
+		echo "No IP Address provided, obtaining public IP"
+	fi
+	IP=$(eval "dig +short myip.opendns.com @resolver1.opendns.com")
+	if [ $? -ne 0 ]; then
+		logStatus "error" "Failed to obtain current IP address"
+		exit 3
+	fi
+fi
+
 
 function submitApiRequest {
   local KEY=$1
@@ -30,15 +234,22 @@ function submitApiRequest {
   local ARGS=$3
 
   # Send request
-  local RESPONSE=$(wget -O- -q https://api.dreamhost.com/ \
-    --post-data key=$KEY\&unique_id=$(uuidgen)\&cmd=$CMD\&$ARGS )
-  local RC=$?
+	if [ $POSTPROCESS = "wget" ]; then
+  		local RESPONSE=$(wget -O- -q https://api.dreamhost.com/ \
+    		--post-data key=$KEY\&unique_id=$(uuidgen)\&cmd=$CMD\&$ARGS )
+	elif [ $POSTPROCESS = "curl" ]; then
+		local RESPONSE=$(curl -s --data "key=$KEY&unique_id=$(uuidgen)&cmd=$CMD&$ARGS" https://api.dreamhost.com/)
+	else
+		logStatus "error" "Missing Dependency -- wget or curl"
+		exit 1
+	fi
+	local RC=$?
 
   # Output response
   printf "$RESPONSE"
 
   if [ $RC -ne 0 ]; then
-    echo "API Request failed"
+    logStatus "notice" "API Request Failed"
     return $?
   fi
 
@@ -56,15 +267,14 @@ function deleteRecord {
   local LIST_RESP=`submitApiRequest $KEY dns-list_records type=A\&editable=1`
 
   if [ $? -ne 0 ]; then
-    echo "Error listing records"
-    printf "$LIST_RESP"
+    logStatus "notice" "Error Listing Records: $LIST_RESP"
     return 1
   fi
 
   local CURRENT_RECORD=`printf "$LIST_RESP" | grep "\s$RECORD\sA"`
 
   if [ $? -ne 0 ]; then
-    # Record not found
+    logStatus "error" "Record not found"
     return 0
   fi
 
@@ -82,7 +292,7 @@ function deleteRecord {
                    record=$RECORD\&type=A\&value=$OLD_VALUE
 
   if [ $? -ne 0 ]; then
-    echo "Unable to delete existing record"
+    logStatus "error" "Unable to Remove Existing Record"
     return 2
   else
     return 0
@@ -99,26 +309,19 @@ function addRecord {
                    record=$RECORD\&type=A\&value=$IP
 }
 
-# Get our current IP address
-
-IP=`wget -O- -q http://software.clempaul.me.uk/ip.php`
-if [ $? -ne 0 ]; then
-  echo "Failed to get current IP address"
-  exit 3
-fi
-
 # Delete any existing record for this domain and determine whether we
 # even need to do any work
 
 deleteRecord $KEY $RECORD $IP
 
 if [ $? -eq 255 ]; then
-  echo "Record up to date"
+  logStatus "notice" "Record up to date"
   exit 0
 fi
 
 if [ $? -ne 0 ]; then
   # Something is wrong
+  logStatus "error" "ERROR $?"
   exit $?
 fi
 
@@ -126,12 +329,12 @@ fi
 
 addRecord $KEY $RECORD $IP
 if [ $? -ne 0 ]; then
-  echo "FATAL ERROR: Failed to add new record"
+	logStatus "alert" "Failed to add new record"
   # In this case, if we have deleted the record, then you will no longer
   # have a DNS record for this domain.
   exit 4
 else 
-  echo "Record updated succesfully"
+  logStatus "notice" "Record updated succesfully"
 fi
 
 # Woohoo! We're exiting cleanly
