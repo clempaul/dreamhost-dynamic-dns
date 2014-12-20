@@ -1,5 +1,5 @@
-dreamhost-dynamic-dns
-=====================
+Dreamhost Dynamic DNS Script
+============================
 
 A Dynamic DNS updater for use with the Dreamhost API
 
