@@ -216,7 +216,7 @@ if [ "$SAVEONLY" == "true" ]; then
 	exit 0
 fi
 
-if [ -n $OPTIP ]; then
+if [ ! -n "$OPTIP" ]; then
 	if [ $VERBOSE = "true" ]; then
 		echo "No IP Address provided, obtaining public IP"
 	fi
@@ -225,6 +225,7 @@ if [ -n $OPTIP ]; then
 		logStatus "error" "Failed to obtain current IP address"
 		exit 3
 	fi
+else IP="$OPTIP"	
 fi
 
 
