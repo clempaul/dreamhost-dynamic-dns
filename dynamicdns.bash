@@ -21,7 +21,7 @@ function createConfigurationFile {
 		echo "$HOME/.config/ does not exist, creating directory."
 		mkdir $HOME/.config
 	fi
-	
+
 echo '# Dreamhost Dynamic DNS Updater Configuration file.  This file
 # allows you to set the basic parameters to update Dreamhost
 # dynamic dns without command line options.
@@ -48,7 +48,7 @@ RECORD=
 # This parameter accepts a BOOLEAN.  By default this parameter is
 # set to "true".
 #
-	  
+
 LOGGING=true
 
 ' >> $HOME/.config/dynamicdns
@@ -87,7 +87,7 @@ function saveConfiguration {
 		if [ $VERBOSE = "true" ]; then
 			echo "Saving RECORD to configuration file"
 		fi
-		
+
 	fi
 	if [ -n "$3" ]; then
 		sed -i "" -e "s/^LOGGING=.*$/LOGGING=$3/" $HOME/.config/dynamicdns
@@ -99,8 +99,9 @@ function saveConfiguration {
 }
 
 VERBOSE="false"
+LISTONLY="false"
 #Get Command Line Options
-while getopts "L:i:k:r:Sdv" OPTS
+while getopts "L:i:k:r:Sdvl" OPTS
 do
 	case $OPTS in
 		L)
@@ -110,22 +111,26 @@ do
 			usage
 			exit 1
 		fi
-		
+
 		OPTLOGGING=$OPTARG
 		;;
-		
+
 		v)
 		VERBOSE="true"
 		;;
-		
+
 		k)
 		OPTKEY=$OPTARG
 		;;
-		
+
+    l)
+		LISTONLY="true"
+		;;
+
 		r)
 		OPTRECORD=$OPTARG
 		;;
-		
+
 		i)
 			if [[ $OPTARG =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]];
 			then
@@ -137,15 +142,15 @@ do
 				exit 1
 			fi
 		;;
-		
+
 		S)
 		SAVE="true"
 		;;
-		
+
 		d)
 		SAVEONLY="true"
 		;;
-		
+
 		?)
 		usage
 		exit 1
@@ -167,10 +172,10 @@ source ~/.config/dynamicdns
 # check for dependencies, if wget not available, test for curl, set variable to be used to test this later
 if command -v wget >/dev/null 2>&1; then
 	POSTPROCESS="wget"
-	
+
 elif command -v curl >/dev/null 2>&1; then
 	POSTPROCESS="curl"
-	
+
 else
 	echo `basename $0` "ERROR: Missing dependency -- wget or curl"
 	logStatus "error" "Missing Dependency -- wget or curl"
@@ -225,7 +230,10 @@ if [ ! -n "$OPTIP" ]; then
 		logStatus "error" "Failed to obtain current IP address"
 		exit 3
 	fi
-else IP="$OPTIP"	
+	if [ $VERBOSE = "true" ]; then
+		echo "Found current public IP: $IP"
+	fi
+else IP="$OPTIP"
 fi
 
 
@@ -256,6 +264,33 @@ function submitApiRequest {
 
   # If "success" is not in the response, then the request failed
   printf "$RESPONSE" | grep "^success$" > /dev/null
+}
+
+function listRecord {
+  local KEY=$1
+  local RECORD=$2
+
+  # See whether there is already a record for this domain
+
+  local LIST_RESP=`submitApiRequest $KEY dns-list_records type=A\&editable=1`
+
+  if [ $? -ne 0 ]; then
+    logStatus "notice" "Error Listing Records: $LIST_RESP"
+    return 1
+  fi
+
+  local CURRENT_RECORD=`printf "$LIST_RESP" | grep "\s$RECORD\sA"`
+
+  if [ $? -ne 0 ]; then
+    logStatus "error" "Record not found"
+    return 0
+  fi
+
+  local OLD_VALUE=`printf "$CURRENT_RECORD" | awk '{print $5 }'`
+
+	echo "Found current record: $OLD_VALUE"
+
+
 }
 
 function deleteRecord {
@@ -310,32 +345,52 @@ function addRecord {
                    record=$RECORD\&type=A\&value=$IP
 }
 
-# Delete any existing record for this domain and determine whether we
-# even need to do any work
+# -------------------------------
+# Main execution
 
-deleteRecord $KEY $RECORD $IP
-
-if [ $? -eq 255 ]; then
-  logStatus "notice" "Record up to date"
-  exit 0
-fi
+listRecord $KEY $RECORD
 
 if [ $? -ne 0 ]; then
-  # Something is wrong
-  logStatus "error" "ERROR $?"
-  exit $?
+	# Something is wrong
+	logStatus "error" "ERROR $?"
+	exit $?
 fi
 
-# Add the new record
+# Determine whether we even need to do any work
 
-addRecord $KEY $RECORD $IP
-if [ $? -ne 0 ]; then
-	logStatus "alert" "Failed to add new record"
-  # In this case, if we have deleted the record, then you will no longer
-  # have a DNS record for this domain.
-  exit 4
-else 
-  logStatus "notice" "Record updated succesfully"
+if [ "$LISTONLY" == "false" ]; then
+
+	# Delete any existing record for this domain
+
+	deleteRecord $KEY $RECORD $IP
+
+	if [ $? -eq 255 ]; then
+	  logStatus "notice" "Record up to date"
+	  exit 0
+	fi
+
+	if [ $? -ne 0 ]; then
+	  # Something is wrong
+	  logStatus "error" "ERROR $?"
+	  exit $?
+	fi
+
+	# Add the new record
+
+	addRecord $KEY $RECORD $IP
+	if [ $? -ne 0 ]; then
+		logStatus "alert" "Failed to add new record"
+	  # In this case, if we have deleted the record, then you will no longer
+	  # have a DNS record for this domain.
+	  exit 4
+	else
+	  logStatus "notice" "Record updated succesfully"
+	fi
+
+else
+
+	logStatus "notice" "Listing current value only, -l switch provided"
+
 fi
 
 # Woohoo! We're exiting cleanly
