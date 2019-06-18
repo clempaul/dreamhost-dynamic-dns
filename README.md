@@ -46,6 +46,8 @@ The options are as follows:
 
 >__-v__ Enable verbose mode. 
 
+>__-l__ Enable list-only mode, showing only current value returned by the Dreamhost API. 
+
 >__-k__ *API Key*
 >> Dreamhost API Key with dns-list\_records, dns-remove\_record, and dns-add\_record permissions.
 
