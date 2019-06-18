@@ -290,7 +290,6 @@ function listRecord {
 
 	echo "Found current record: $OLD_VALUE"
 
-
 }
 
 function deleteRecord {
@@ -348,20 +347,23 @@ function addRecord {
 # -------------------------------
 # Main execution
 
-listRecord $KEY $RECORD
+if [ "$LISTONLY" == "true" ]; then
 
-if [ $? -ne 0 ]; then
-	# Something is wrong
-	logStatus "error" "ERROR $?"
-	exit $?
-fi
+	# We're just getting the current record
+	
+	listRecord $KEY $RECORD
 
-# Determine whether we even need to do any work
+	if [ $? -ne 0 ]; then
+		# Something is wrong
+		logStatus "error" "ERROR $?"
+		exit $?
+	fi
 
-if [ "$LISTONLY" == "false" ]; then
+else
+
+        # We're updating the record
 
 	# Delete any existing record for this domain
-
 	deleteRecord $KEY $RECORD $IP
 
 	if [ $? -eq 255 ]; then
@@ -386,10 +388,6 @@ if [ "$LISTONLY" == "false" ]; then
 	else
 	  logStatus "notice" "Record updated succesfully"
 	fi
-
-else
-
-	logStatus "notice" "Listing current value only, -l switch provided"
 
 fi
 
