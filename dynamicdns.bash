@@ -306,7 +306,7 @@ function deleteRecord {
     return 1
   fi
 
-  local CURRENT_RECORD=`echo $CURRENT_RECORD | grep -Po "$RECORD A [0-9]{3}.[0-9]{2}.[0-9]{2}.[0-9]{3}"`
+  local CURRENT_RECORD=`echo $CURRENT_RECORD | egrep -o "$RECORD A [0-9]{3}.[0-9]{2}.[0-9]{2}.[0-9]{3}"`
 
   if [ $? -ne 0 ]; then
     logStatus "error" "Record not found"
