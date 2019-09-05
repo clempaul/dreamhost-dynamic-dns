@@ -307,7 +307,7 @@ function deleteRecord {
   fi
 
   local CURRENT_RECORD=`echo "$LIST_RESP" | egrep -o "$RECORD A [0-9]{3}.[0-9]{2}.[0-9]{2}.[0-9]{3}"`
-
+  echo "$CURRENT_RECORD"
   if [ $? -ne 0 ]; then
     logStatus "error" "Record not found"
     return 0
