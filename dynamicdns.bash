@@ -300,14 +300,14 @@ function deleteRecord {
   # See whether there is already a record for this domain
 
   local LIST_RESP=`submitApiRequest $KEY dns-list_records type=A\&editable=1`
-
+  echo "$LIST_RESP results"		
   if [ $? -ne 0 ]; then
     logStatus "notice" "Error Listing Records: $LIST_RESP"
     return 1
   fi
 
   local CURRENT_RECORD=`echo "$LIST_RESP" | egrep -o "$RECORD A [0-9]{3}.[0-9]{2}.[0-9]{2}.[0-9]{3}"`
-  echo "$CURRENT_RECORD"
+  echo "$CURRENT_RECORD results"
   if [ $? -ne 0 ]; then
     logStatus "error" "Record not found"
     return 0
