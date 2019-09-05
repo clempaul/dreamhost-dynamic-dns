@@ -306,14 +306,14 @@ function deleteRecord {
     return 1
   fi
 
-  local CURRENT_RECORD=`printf "$LIST_RESP" | grep "\s$RECORD\sA"`
+  local CURRENT_RECORD=`echo $CURRENT_RECORD | grep -Po "$RECORD A [0-9]{3}.[0-9]{2}.[0-9]{2}.[0-9]{3}"`
 
   if [ $? -ne 0 ]; then
     logStatus "error" "Record not found"
     return 0
   fi
 
-  local OLD_VALUE=`printf "$CURRENT_RECORD" | awk '{print $5 }'`
+  local OLD_VALUE=`echo "$CURRENT_RECORD" | awk '{print $3 }'`
 
   if [ "$OLD_VALUE" == "$NEW_VALUE" ]; then
     # The current record is up to date, so we don't need to do anything
