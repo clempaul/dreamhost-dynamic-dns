@@ -313,7 +313,7 @@ function deleteRecord {
     return 0
   fi
 
-  local OLD_VALUE=`echo "$CURRENT_RECORD" | awk '{print $3 }'`
+  local OLD_VALUE=`echo $CURRENT_RECORD | awk '{print $3 }'`
 
   if [ "$OLD_VALUE" == "$NEW_VALUE" ]; then
     # The current record is up to date, so we don't need to do anything
