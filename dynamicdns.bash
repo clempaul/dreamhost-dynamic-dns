@@ -300,20 +300,21 @@ function deleteRecord {
   # See whether there is already a record for this domain
 
   local LIST_RESP=`submitApiRequest $KEY dns-list_records type=A\&editable=1`
-
   if [ $? -ne 0 ]; then
     logStatus "notice" "Error Listing Records: $LIST_RESP"
     return 1
   fi
 
-  local CURRENT_RECORD=`printf "$LIST_RESP" | grep "\s$RECORD\sA"`
-
+  local CURRENT_RECORD=`echo $LIST_RESP | egrep -o "$RECORD\s+A\s+[0-9]{,3}.[0-9]{,3}.[0-9]{,3}.[0-9]{,3}"`
+  if [ $VERBOSE = "true" ]; then
+    echo "Current Record: $CURRENT_RECORD"
+  fi
   if [ $? -ne 0 ]; then
     logStatus "error" "Record not found"
     return 0
   fi
 
-  local OLD_VALUE=`printf "$CURRENT_RECORD" | awk '{print $5 }'`
+  local OLD_VALUE=`echo $CURRENT_RECORD | awk '{print $3 }'`
 
   if [ "$OLD_VALUE" == "$NEW_VALUE" ]; then
     # The current record is up to date, so we don't need to do anything
