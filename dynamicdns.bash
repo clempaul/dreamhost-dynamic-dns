@@ -225,7 +225,7 @@ if [ ! -n "$OPTIP" ]; then
 	if [ $VERBOSE = "true" ]; then
 		echo "No IP Address provided, obtaining public IP"
 	fi
-	IP=$(eval "dig +short myip.opendns.com @resolver1.opendns.com")
+	IP=$(eval "dig -4 +short myip.opendns.com @resolver1.opendns.com")
 	if [ $? -ne 0 ]; then
 		logStatus "error" "Failed to obtain current IP address"
 		exit 3
