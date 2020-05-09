@@ -279,7 +279,8 @@ function listRecord {
     return 1
   fi
 
-  local CURRENT_RECORD=`printf "$LIST_RESP" | grep "\s$RECORD\sA"`
+  local CLEANED_RECORD=`echo $RECORD | sed "s/[*]/[*]/g ; s/[.]/[.]/g "` 
+  local CURRENT_RECORD=`printf "$LIST_RESP" | grep "\s$CLEANED_RECORD\sA"`
 
   if [ $? -ne 0 ]; then
     logStatus "error" "Record not found"
@@ -305,7 +306,8 @@ function deleteRecord {
     return 1
   fi
 
-  local CURRENT_RECORD=`echo $LIST_RESP | egrep -o "\s$RECORD\s+A\s+[0-9]{,3}.[0-9]{,3}.[0-9]{,3}.[0-9]{,3}"`
+  local CLEANED_RECORD=`echo $RECORD | sed "s/[*]/[*]/g ; s/[.]/[.]/g "` 
+  local CURRENT_RECORD=`echo $LIST_RESP | egrep -o "\s$CLEANED_RECORD\s+A\s+[0-9]{,3}.[0-9]{,3}.[0-9]{,3}.[0-9]{,3}"`
   if [ $VERBOSE = "true" ]; then
     echo "Current Record: $CURRENT_RECORD"
   fi
