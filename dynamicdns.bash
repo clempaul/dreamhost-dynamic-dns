@@ -11,6 +11,8 @@
 # Additional changes and updates as noted via https://github.com/jgabello/dreamhost-dynamic-dns Copyright (c) 2014, Contributing Author
 # See LICENSE for more details.
 
+CONFIG="$HOME/.config/dynamicdns"
+
 function usage {
 	echo 'usage:   dynamicdns.bash [-Sdv][-k API Key] [-r Record] [-i New IP Address] [-L Logging (true/false)]'
 }
@@ -22,7 +24,8 @@ function createConfigurationFile {
 		mkdir $HOME/.config
 	fi
 
-echo '# Dreamhost Dynamic DNS Updater Configuration file.  This file
+    umask 077
+echo -n '# Dreamhost Dynamic DNS Updater Configuration file.  This file
 # allows you to set the basic parameters to update Dreamhost
 # dynamic dns without command line options.
 # There are three basic parameters:
@@ -50,8 +53,7 @@ RECORD=
 #
 
 LOGGING=true
-
-' >> $HOME/.config/dynamicdns
+' > "$CONFIG"
 
 return 0
 }
@@ -59,7 +61,7 @@ return 0
 function logStatus {
 	local LEVEL=$1
 	local MESSAGE=$2
-	if [ $LOGGING = "true" ]; then
+	if [ "$LOGGING" = "true" ]; then
 		if [ $LEVEL = "error" ]; then
 			logger -p syslog.err -t "dynamicdns.bash" "$MESSAGE"
 		elif [ $LEVEL = "notice" ]; then
@@ -76,21 +78,21 @@ function logStatus {
 
 function saveConfiguration {
 	if [ -n "$1" ]; then
-		sed -i "" -e "s/^KEY=.*$/KEY=$1/" $HOME/.config/dynamicdns
+		sed -i "" -e "s/^KEY=.*$/KEY=$1/" "$CONFIG"
 		if [ $VERBOSE = "true" ]; then
 			echo "Saving KEY to configuration file"
 		fi
 	fi
 
 	if [ -n "$2" ]; then
-		sed -i "" -e "s/^RECORD=.*$/RECORD=$2/" $HOME/.config/dynamicdns
+		sed -i "" -e "s/^RECORD=.*$/RECORD=$2/" "$CONFIG"
 		if [ $VERBOSE = "true" ]; then
 			echo "Saving RECORD to configuration file"
 		fi
 
 	fi
 	if [ -n "$3" ]; then
-		sed -i "" -e "s/^LOGGING=.*$/LOGGING=$3/" $HOME/.config/dynamicdns
+		sed -i "" -e "s/^LOGGING=.*$/LOGGING=$3/" "$CONFIG"
 		if [ $VERBOSE = "true" ]; then
 			echo "Saving LOGGING to configuration file"
 		fi
