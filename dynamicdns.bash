@@ -227,8 +227,27 @@ if [ ! -n "$OPTIP" ]; then
 	if [ $VERBOSE = "true" ]; then
 		echo "No IP Address provided, obtaining public IP"
 	fi
-	IP=$(eval "dig -4 +short myip.opendns.com @resolver1.opendns.com")
-	if [ $? -ne 0 ]; then
+    # Try multiple resolvers (in case they don't respond)
+    RESOLVERS='
+        o-o.myaddr.l.google.com:@ns1.google.com:TXT
+        myip.opendns.com:resolver1.opendns.com:A
+        whoami.akamai.net:ns1-1.akamaitech.net:A
+        o-o.myaddr.l.google.com:@ns2.google.com:TXT
+        myip.opendns.com:resolver2.opendns.com:A
+        o-o.myaddr.l.google.com:@ns3.google.com:TXT
+        myip.opendns.com:resolver3.opendns.com:A
+        o-o.myaddr.l.google.com:@ns4.google.com:TXT
+        myip.opendns.com:resolver4.opendns.com:A
+    '
+	for ENTRY in $RESOLVERS; do
+        IFS=':' read -r OWN_HOSTNAME RESOLVER DNS_RECORD <<< $ENTRY
+		IP=$(dig -4 +short $DNS_RECORD $OWN_HOSTNAME @$RESOLVER)
+		if [ $? -eq 0 ]; then
+			break
+		fi
+		logStatus "notice" "Failed to obtain current IP address using $RESOLVER"
+	done
+	if [[ ! $IP =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
 		logStatus "error" "Failed to obtain current IP address"
 		exit 3
 	fi
