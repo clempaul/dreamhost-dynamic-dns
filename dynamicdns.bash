@@ -14,17 +14,17 @@
 CONFIG="$HOME/.config/dynamicdns"
 
 function usage {
-	echo 'usage:   dynamicdns.bash [-Sdv][-k API Key] [-r Record] [-i New IP Address] [-L Logging (true/false)]'
+  echo 'usage:   dynamicdns.bash [-Sdv][-k API Key] [-r Record] [-i New IP Address] [-L Logging (true/false)]'
 }
 
 function createConfigurationFile {
 
-	if [ ! -d $HOME/.config ]; then
-		echo "$HOME/.config/ does not exist, creating directory."
-		mkdir $HOME/.config
-	fi
+  if [ ! -d $HOME/.config ]; then
+    echo "$HOME/.config/ does not exist, creating directory."
+    mkdir $HOME/.config
+  fi
 
-    umask 077
+  umask 077
 echo -n '# Dreamhost Dynamic DNS Updater Configuration file.  This file
 # allows you to set the basic parameters to update Dreamhost
 # dynamic dns without command line options.
@@ -59,45 +59,45 @@ return 0
 }
 
 function logStatus {
-	local LEVEL=$1
-	local MESSAGE=$2
-	if [ "$LOGGING" = "true" ]; then
-		if [ $LEVEL = "error" ]; then
-			logger -p syslog.err -t "dynamicdns.bash" "$MESSAGE"
-		elif [ $LEVEL = "notice" ]; then
-			logger -p syslog.notice -t "dynamicdns.bash" "$MESSAGE"
-		elif [ $LEVEL = "alert" ]; then
-			logger -p syslog.alert -t "dynamicdns.bash" "$MESSAGE"
-		fi
-	fi
-	if [ $VERBOSE = "true" ]; then
-		echo "dynamicdns.bash $MESSAGE"
-	fi
-	return 0
+  local LEVEL=$1
+  local MESSAGE=$2
+  if [ "$LOGGING" = "true" ]; then
+    if [ $LEVEL = "error" ]; then
+      logger -p syslog.err -t "dynamicdns.bash" "$MESSAGE"
+    elif [ $LEVEL = "notice" ]; then
+      logger -p syslog.notice -t "dynamicdns.bash" "$MESSAGE"
+    elif [ $LEVEL = "alert" ]; then
+      logger -p syslog.alert -t "dynamicdns.bash" "$MESSAGE"
+    fi
+  fi
+  if [ $VERBOSE = "true" ]; then
+    echo "dynamicdns.bash $MESSAGE"
+  fi
+  return 0
 }
 
 function saveConfiguration {
-	if [ -n "$1" ]; then
-		sed -i "" -e "s/^KEY=.*$/KEY=$1/" "$CONFIG"
-		if [ $VERBOSE = "true" ]; then
-			echo "Saving KEY to configuration file"
-		fi
-	fi
+  if [ -n "$1" ]; then
+    sed -i "" -e "s/^KEY=.*$/KEY=$1/" "$CONFIG"
+    if [ $VERBOSE = "true" ]; then
+      echo "Saving KEY to configuration file"
+    fi
+  fi
 
-	if [ -n "$2" ]; then
-		sed -i "" -e "s/^RECORD=.*$/RECORD=$2/" "$CONFIG"
-		if [ $VERBOSE = "true" ]; then
-			echo "Saving RECORD to configuration file"
-		fi
+  if [ -n "$2" ]; then
+    sed -i "" -e "s/^RECORD=.*$/RECORD=$2/" "$CONFIG"
+    if [ $VERBOSE = "true" ]; then
+      echo "Saving RECORD to configuration file"
+    fi
 
-	fi
-	if [ -n "$3" ]; then
-		sed -i "" -e "s/^LOGGING=.*$/LOGGING=$3/" "$CONFIG"
-		if [ $VERBOSE = "true" ]; then
-			echo "Saving LOGGING to configuration file"
-		fi
-	fi
-	return 0
+  fi
+  if [ -n "$3" ]; then
+    sed -i "" -e "s/^LOGGING=.*$/LOGGING=$3/" "$CONFIG"
+    if [ $VERBOSE = "true" ]; then
+      echo "Saving LOGGING to configuration file"
+    fi
+  fi
+  return 0
 }
 
 VERBOSE="false"
@@ -105,66 +105,66 @@ LISTONLY="false"
 #Get Command Line Options
 while getopts "L:i:k:r:Sdvl" OPTS
 do
-	case $OPTS in
-		L)
-		if ! ([ "$OPTARG" == "true" ] || [ "$OPTARG" == "false" ])  ; then
-			echo `basename $0` " Invalid Parameters -- L"
-			logStatus "error" "Invalid Parameters -- L"
-			usage
-			exit 1
-		fi
+  case $OPTS in
+    L)
+    if ! ([ "$OPTARG" == "true" ] || [ "$OPTARG" == "false" ])  ; then
+      echo `basename $0` " Invalid Parameters -- L"
+      logStatus "error" "Invalid Parameters -- L"
+      usage
+      exit 1
+    fi
 
-		OPTLOGGING=$OPTARG
-		;;
+    OPTLOGGING=$OPTARG
+    ;;
 
-		v)
-		VERBOSE="true"
-		;;
+    v)
+    VERBOSE="true"
+    ;;
 
-		k)
-		OPTKEY=$OPTARG
-		;;
+    k)
+    OPTKEY=$OPTARG
+    ;;
 
     l)
-		LISTONLY="true"
-		;;
+    LISTONLY="true"
+    ;;
 
-		r)
-		OPTRECORD=$OPTARG
-		;;
+    r)
+    OPTRECORD=$OPTARG
+    ;;
 
-		i)
-			if [[ $OPTARG =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]];
-			then
-				OPTIP=$OPTARG
-			else
-				echo `basename $0` " Invalid Parameters -- i"
-				logStatus "error" "Invalid Parameters -- i"
-				usage
-				exit 1
-			fi
-		;;
+    i)
+    if [[ $OPTARG =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]];
+    then
+      OPTIP=$OPTARG
+    else
+      echo `basename $0` " Invalid Parameters -- i"
+      logStatus "error" "Invalid Parameters -- i"
+      usage
+      exit 1
+    fi
+    ;;
 
-		S)
-		SAVE="true"
-		;;
+    S)
+    SAVE="true"
+    ;;
 
-		d)
-		SAVEONLY="true"
-		;;
+    d)
+    SAVEONLY="true"
+    ;;
 
-		?)
-		usage
-		exit 1
-		;;
-	esac
+    ?)
+    usage
+    exit 1
+    ;;
+  esac
 done
 
 #Check for Configuration File
 
 if [ ! -f ~/.config/dynamicdns ]; then
-	logStatus "notice" "Configuration File Not Found. Creating new configuration file."
-	createConfigurationFile
+  logStatus "notice" "Configuration File Not Found. Creating new configuration file."
+  createConfigurationFile
 fi
 
 # Load Configuration File
@@ -173,87 +173,87 @@ source ~/.config/dynamicdns
 
 # check for dependencies, if wget not available, test for curl, set variable to be used to test this later
 if command -v wget >/dev/null 2>&1; then
-	POSTPROCESS="wget"
+  POSTPROCESS="wget"
 
 elif command -v curl >/dev/null 2>&1; then
-	POSTPROCESS="curl"
+  POSTPROCESS="curl"
 
 else
-	echo `basename $0` "ERROR: Missing dependency -- wget or curl"
-	logStatus "error" "Missing Dependency -- wget or curl"
-	exit 1
+  echo `basename $0` "ERROR: Missing dependency -- wget or curl"
+  logStatus "error" "Missing Dependency -- wget or curl"
+  exit 1
 fi
 if [ $VERBOSE = "true" ]; then
-	echo "Post process set to: $POSTPROCESS"
+  echo "Post process set to: $POSTPROCESS"
 fi
 
 if [ ! -n "$OPTKEY" ]; then
-	if [ ! -n "$KEY" ]; then
-		echo "dynamicdns.bash: missing parameter -- KEY"
-		logStatus "error" "Missing Parameter -- KEY"
-		usage
-		exit 1
-	fi
+  if [ ! -n "$KEY" ]; then
+    echo "dynamicdns.bash: missing parameter -- KEY"
+    logStatus "error" "Missing Parameter -- KEY"
+    usage
+    exit 1
+  fi
 else KEY="$OPTKEY"
 fi
 
 if [ ! -n "$OPTRECORD" ]; then
-	if [ ! -n "$RECORD" ]; then
-		echo "dynamicdns.bash: missing parameter -- RECORD"
-		logStatus "error" "Missing Parameter -- RECORD"
-		usage
- 	exit 1
-	fi
+  if [ ! -n "$RECORD" ]; then
+    echo "dynamicdns.bash: missing parameter -- RECORD"
+    logStatus "error" "Missing Parameter -- RECORD"
+    usage
+   exit 1
+  fi
 else RECORD="$OPTRECORD"
 fi
 
 if [ $VERBOSE = "true" ]; then
-	echo "Using API Key: $KEY"
-	echo "Updating RECORD: $RECORD"
+  echo "Using API Key: $KEY"
+  echo "Updating RECORD: $RECORD"
 fi
 
 if [ "$SAVE" == "true" ] || [ "$SAVEONLY" == "true" ]; then
-	saveConfiguration "$OPTKEY" "$OPTRECORD" "$OPTLOGGING"
+  saveConfiguration "$OPTKEY" "$OPTRECORD" "$OPTLOGGING"
 fi
 
 if [ "$SAVEONLY" == "true" ]; then
-	if [ $VERBOSE = "true" ]; then
-		echo "Saving Configuration File and Exiting"
-	fi
-	exit 0
+  if [ $VERBOSE = "true" ]; then
+    echo "Saving Configuration File and Exiting"
+  fi
+  exit 0
 fi
 
 if [ ! -n "$OPTIP" ]; then
-	if [ $VERBOSE = "true" ]; then
-		echo "No IP Address provided, obtaining public IP"
-	fi
-    # Try multiple resolvers (in case they don't respond)
-    RESOLVERS='
-        o-o.myaddr.l.google.com:@ns1.google.com:TXT
-        myip.opendns.com:resolver1.opendns.com:A
-        whoami.akamai.net:ns1-1.akamaitech.net:A
-        o-o.myaddr.l.google.com:@ns2.google.com:TXT
-        myip.opendns.com:resolver2.opendns.com:A
-        o-o.myaddr.l.google.com:@ns3.google.com:TXT
-        myip.opendns.com:resolver3.opendns.com:A
-        o-o.myaddr.l.google.com:@ns4.google.com:TXT
-        myip.opendns.com:resolver4.opendns.com:A
-    '
-	for ENTRY in $RESOLVERS; do
-        IFS=':' read -r OWN_HOSTNAME RESOLVER DNS_RECORD <<< $ENTRY
-		IP=$(dig -4 +short $DNS_RECORD $OWN_HOSTNAME @$RESOLVER)
-		if [ $? -eq 0 ]; then
-			break
-		fi
-		logStatus "notice" "Failed to obtain current IP address using $RESOLVER"
-	done
-	if [[ ! $IP =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
-		logStatus "error" "Failed to obtain current IP address"
-		exit 3
-	fi
-	if [ $VERBOSE = "true" ]; then
-		echo "Found current public IP: $IP"
-	fi
+  if [ $VERBOSE = "true" ]; then
+    echo "No IP Address provided, obtaining public IP"
+  fi
+  # Try multiple resolvers (in case they don't respond)
+  RESOLVERS='
+    o-o.myaddr.l.google.com:ns1.google.com:TXT
+    myip.opendns.com:resolver1.opendns.com:A
+    whoami.akamai.net:ns1-1.akamaitech.net:A
+    o-o.myaddr.l.google.com:ns2.google.com:TXT
+    myip.opendns.com:resolver2.opendns.com:A
+    o-o.myaddr.l.google.com:ns3.google.com:TXT
+    myip.opendns.com:resolver3.opendns.com:A
+    o-o.myaddr.l.google.com:ns4.google.com:TXT
+    myip.opendns.com:resolver4.opendns.com:A
+  '
+  for ENTRY in $RESOLVERS; do
+    IFS=':' read -r OWN_HOSTNAME RESOLVER DNS_RECORD <<< $ENTRY
+    IP=$(dig -4 +short $DNS_RECORD $OWN_HOSTNAME @$RESOLVER)
+    if [ $? -eq 0 ]; then
+      break
+    fi
+    logStatus "notice" "Failed to obtain current IP address using $RESOLVER"
+  done
+  if [[ ! $IP =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+    logStatus "error" "Failed to obtain current IP address"
+    exit 3
+  fi
+  if [ $VERBOSE = "true" ]; then
+    echo "Found current public IP: $IP"
+  fi
 else IP="$OPTIP"
 fi
 
@@ -264,16 +264,16 @@ function submitApiRequest {
   local ARGS=$3
 
   # Send request
-	if [ $POSTPROCESS = "wget" ]; then
-  		local RESPONSE=$(wget -O- -q https://api.dreamhost.com/ \
-    		--post-data key=$KEY\&unique_id=$(uuidgen)\&cmd=$CMD\&$ARGS )
-	elif [ $POSTPROCESS = "curl" ]; then
-		local RESPONSE=$(curl -s --data "key=$KEY&unique_id=$(uuidgen)&cmd=$CMD&$ARGS" https://api.dreamhost.com/)
-	else
-		logStatus "error" "Missing Dependency -- wget or curl"
-		exit 1
-	fi
-	local RC=$?
+  if [ $POSTPROCESS = "wget" ]; then
+      local RESPONSE=$(wget -O- -q https://api.dreamhost.com/ \
+        --post-data key=$KEY\&unique_id=$(uuidgen)\&cmd=$CMD\&$ARGS )
+  elif [ $POSTPROCESS = "curl" ]; then
+    local RESPONSE=$(curl -s --data "key=$KEY&unique_id=$(uuidgen)&cmd=$CMD&$ARGS" https://api.dreamhost.com/)
+  else
+    logStatus "error" "Missing Dependency -- wget or curl"
+    exit 1
+  fi
+  local RC=$?
 
   # Output response
   printf "$RESPONSE"
@@ -310,7 +310,7 @@ function listRecord {
 
   local OLD_VALUE=`printf "$CURRENT_RECORD" | awk '{print $5 }'`
 
-	echo "Found current record: $OLD_VALUE"
+  echo "Found current record: $OLD_VALUE"
 
 }
 
@@ -373,45 +373,45 @@ function addRecord {
 
 if [ "$LISTONLY" == "true" ]; then
 
-	# We're just getting the current record
-	
-	listRecord $KEY $RECORD
+  # We're just getting the current record
+  
+  listRecord $KEY $RECORD
 
-	if [ $? -ne 0 ]; then
-		# Something is wrong
-		logStatus "error" "ERROR $?"
-		exit $?
-	fi
+  if [ $? -ne 0 ]; then
+    # Something is wrong
+    logStatus "error" "ERROR $?"
+    exit $?
+  fi
 
 else
 
-        # We're updating the record
+  # We're updating the record
 
-	# Delete any existing record for this domain
-	deleteRecord $KEY $RECORD $IP
+  # Delete any existing record for this domain
+  deleteRecord $KEY $RECORD $IP
 
-	if [ $? -eq 255 ]; then
-	  logStatus "notice" "Record up to date"
-	  exit 0
-	fi
+  if [ $? -eq 255 ]; then
+    logStatus "notice" "Record up to date"
+    exit 0
+  fi
 
-	if [ $? -ne 0 ]; then
-	  # Something is wrong
-	  logStatus "error" "ERROR $?"
-	  exit $?
-	fi
+  if [ $? -ne 0 ]; then
+    # Something is wrong
+    logStatus "error" "ERROR $?"
+    exit $?
+  fi
 
-	# Add the new record
+  # Add the new record
 
-	addRecord $KEY $RECORD $IP
-	if [ $? -ne 0 ]; then
-		logStatus "alert" "Failed to add new record"
-	  # In this case, if we have deleted the record, then you will no longer
-	  # have a DNS record for this domain.
-	  exit 4
-	else
-	  logStatus "notice" "Record updated succesfully"
-	fi
+  addRecord $KEY $RECORD $IP
+  if [ $? -ne 0 ]; then
+    logStatus "alert" "Failed to add new record"
+    # In this case, if we have deleted the record, then you will no longer
+    # have a DNS record for this domain.
+    exit 4
+  else
+    logStatus "notice" "Record updated succesfully"
+  fi
 
 fi
 
