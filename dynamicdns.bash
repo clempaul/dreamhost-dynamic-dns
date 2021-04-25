@@ -247,6 +247,7 @@ if [ ! -n "$OPTIP" ]; then
     fi
     logStatus "notice" "Failed to obtain current IP address using $RESOLVER"
   done
+  IP=${IP//\"/}
   if [[ ! $IP =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
     logStatus "error" "Failed to obtain current IP address"
     exit 3
