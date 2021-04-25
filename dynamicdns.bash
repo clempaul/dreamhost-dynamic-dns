@@ -309,7 +309,7 @@ function deleteRecord {
   fi
 
   local CLEANED_RECORD=`echo $RECORD | sed "s/[*]/[*]/g ; s/[.]/[.]/g "` 
-  local CURRENT_RECORD=`echo $LIST_RESP | egrep -o "\s$CLEANED_RECORD\s+A\s+[0-9]{,3}.[0-9]{,3}.[0-9]{,3}.[0-9]{,3}"`
+  local CURRENT_RECORD=`echo $LIST_RESP | egrep -o "\s$CLEANED_RECORD\s+A\s+[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}"`
   if [ $VERBOSE = "true" ]; then
     echo "Current Record: $CURRENT_RECORD"
   fi
