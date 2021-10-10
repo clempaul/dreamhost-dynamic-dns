@@ -78,21 +78,21 @@ function logStatus {
 
 function saveConfiguration {
   if [ -n "$1" ]; then
-    sed -i "" -e "s/^KEY=.*$/KEY=$1/" "$CONFIG"
+    sed -i -e "s/^KEY=.*$/KEY=$1/" "$CONFIG"
     if [ $VERBOSE = "true" ]; then
       echo "Saving KEY to configuration file"
     fi
   fi
 
   if [ -n "$2" ]; then
-    sed -i "" -e "s/^RECORD=.*$/RECORD=$2/" "$CONFIG"
+    sed -i -e "s/^RECORD=.*$/RECORD=$2/" "$CONFIG"
     if [ $VERBOSE = "true" ]; then
       echo "Saving RECORD to configuration file"
     fi
 
   fi
   if [ -n "$3" ]; then
-    sed -i "" -e "s/^LOGGING=.*$/LOGGING=$3/" "$CONFIG"
+    sed -i -e "s/^LOGGING=.*$/LOGGING=$3/" "$CONFIG"
     if [ $VERBOSE = "true" ]; then
       echo "Saving LOGGING to configuration file"
     fi
