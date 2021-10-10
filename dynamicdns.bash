@@ -14,7 +14,7 @@
 CONFIG="$HOME/.config/dynamicdns"
 
 function usage {
-  echo 'usage:   dynamicdns.bash [-Sdv][-k API Key] [-r Record] [-i New IP Address] [-L Logging (true/false)]'
+  echo 'usage:  ' `basename $0` '[-Sdv][-k API Key] [-r Record] [-i New IP Address] [-L Logging (true/false)]'
 }
 
 function createConfigurationFile {
@@ -63,15 +63,15 @@ function logStatus {
   local MESSAGE=$2
   if [ "$LOGGING" = "true" ]; then
     if [ $LEVEL = "error" ]; then
-      logger -p syslog.err -t "dynamicdns.bash" "$MESSAGE"
+      logger -p syslog.err -t `basename $0` "$MESSAGE"
     elif [ $LEVEL = "notice" ]; then
-      logger -p syslog.notice -t "dynamicdns.bash" "$MESSAGE"
+      logger -p syslog.notice -t `basename $0` "$MESSAGE"
     elif [ $LEVEL = "alert" ]; then
-      logger -p syslog.alert -t "dynamicdns.bash" "$MESSAGE"
+      logger -p syslog.alert -t `basename $0` "$MESSAGE"
     fi
   fi
   if [ $VERBOSE = "true" ]; then
-    echo "dynamicdns.bash $MESSAGE"
+    echo `basename $0` "$MESSAGE"
   fi
   return 0
 }
@@ -189,7 +189,7 @@ fi
 
 if [ ! -n "$OPTKEY" ]; then
   if [ ! -n "$KEY" ]; then
-    echo "dynamicdns.bash: missing parameter -- KEY"
+    echo `basename $0` ": missing parameter -- KEY"
     logStatus "error" "Missing Parameter -- KEY"
     usage
     exit 1
@@ -199,7 +199,7 @@ fi
 
 if [ ! -n "$OPTRECORD" ]; then
   if [ ! -n "$RECORD" ]; then
-    echo "dynamicdns.bash: missing parameter -- RECORD"
+    echo `basename $0` ": missing parameter -- RECORD"
     logStatus "error" "Missing Parameter -- RECORD"
     usage
    exit 1
