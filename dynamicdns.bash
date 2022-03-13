@@ -240,7 +240,7 @@ if [ ! -n "$OPTIP" ]; then
     myip.opendns.com:resolver4.opendns.com:A
   '
   for ENTRY in $RESOLVERS; do
-    IFS=':' read -r OWN_HOSTNAME RESOLVER DNS_RECORD <<< $ENTRY
+    IFS=':' read -r OWN_HOSTNAME RESOLVER DNS_RECORD <<< "$ENTRY"
     IP=$(dig -4 +short $DNS_RECORD $OWN_HOSTNAME @$RESOLVER)
     if [ $? -eq 0 ]; then
       break
