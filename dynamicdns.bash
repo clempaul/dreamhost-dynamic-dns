@@ -100,10 +100,27 @@ function saveConfiguration {
   return 0
 }
 
+function expandIPV6 {
+  local IPV6=$1
+  if [[ $IPV6 == *":"* ]]; then
+    IPV6=`echo $IPV6 | awk '{if(NF<8){inner = "0"; for(missing = (8 - NF);missing>0;--missing){inner = inner ":0"}; if($2 == ""){$2 = inner} else if($3 == ""){$3 = inner} else if($4 == ""){$4 = inner} else if($5 == ""){$5 = inner} else if($6 == ""){$6 = inner} else if($7 == ""){$7 = inner}}; print $0}' FS=":" OFS=":" | awk '{for(i=1;i<9;++i){len = length($(i)); if(len < 1){$(i) = "0000"} else if(len < 2){$(i) = "000" $(i)} else if(len < 3){$(i) = "00" $(i)} else if(len < 4){$(i) = "0" $(i)} }; print $0}' FS=":" OFS=":"`
+  fi
+  echo "$IPV6"
+}
+
+
 VERBOSE="false"
 LISTONLY="false"
+declare -A TYPES=(["4"]="A" ["6"]="AAAA")
+declare -A REGEXPS=(["4"]='^([0-9]{1,3}\.){3}[0-9]{1,3}$'
+		    ["6"]='^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))'$)
+
+declare -A OPTIP
+declare -A IP
+declare -A RECORDS
+
 #Get Command Line Options
-while getopts "L:i:k:r:Sdvl" OPTS
+while getopts "L:4:6:k:r:Sdvl" OPTS
 do
   case $OPTS in
     L)
@@ -133,13 +150,25 @@ do
     OPTRECORD=$OPTARG
     ;;
 
-    i)
-    if [[ $OPTARG =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]];
+    4)
+    if [[ $OPTARG =~ REGEXPS["4" ]];
     then
-      OPTIP=$OPTARG
+      OPTIP["4"]=$OPTARG
     else
-      echo `basename $0` " Invalid Parameters -- i"
-      logStatus "error" "Invalid Parameters -- i"
+      echo `basename $0` " Invalid Parameters -- 4"
+      logStatus "error" "Invalid Parameters -- 4"
+      usage
+      exit 1
+    fi
+    ;;
+
+    6)
+    if [[ $OPTARG =~ REGEXPS["6" ]];
+    then
+      OPTIP["6"]=$(expandIPV6 $OPTARG)
+    else
+      echo `basename $0` " Invalid Parameters -- 6"
+      logStatus "error" "Invalid Parameters -- 6"
       usage
       exit 1
     fi
@@ -223,41 +252,45 @@ if [ "$SAVEONLY" == "true" ]; then
   exit 0
 fi
 
-if [ ! -n "$OPTIP" ]; then
-  if [ $VERBOSE = "true" ]; then
-    echo "No IP Address provided, obtaining public IP"
-  fi
-  # Try multiple resolvers (in case they don't respond)
-  RESOLVERS='
-    o-o.myaddr.l.google.com:ns1.google.com:TXT
-    myip.opendns.com:resolver1.opendns.com:A
-    whoami.akamai.net:ns1-1.akamaitech.net:A
-    o-o.myaddr.l.google.com:ns2.google.com:TXT
-    myip.opendns.com:resolver2.opendns.com:A
-    o-o.myaddr.l.google.com:ns3.google.com:TXT
-    myip.opendns.com:resolver3.opendns.com:A
-    o-o.myaddr.l.google.com:ns4.google.com:TXT
-    myip.opendns.com:resolver4.opendns.com:A
-  '
-  for ENTRY in $RESOLVERS; do
-    IFS=':' read -r OWN_HOSTNAME RESOLVER DNS_RECORD <<< "$ENTRY"
-    IP=$(dig -4 +short $DNS_RECORD $OWN_HOSTNAME @$RESOLVER)
-    if [ $? -eq 0 ]; then
-      break
+for TYPE in 4 6; do
+  if [ ! -n "${OPTIP[$TYPE]}" ]; then
+    if [ $VERBOSE = "true" ]; then
+      echo "No IPV$TYPE Address provided, obtaining public IP"
     fi
-    logStatus "notice" "Failed to obtain current IP address using $RESOLVER"
-  done
-  IP=${IP//\"/}
-  if [[ ! $IP =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
-    logStatus "error" "Failed to obtain current IP address"
-    exit 3
+    # Try multiple resolvers (in case they don't respond)
+    RESOLVERS="
+      o-o.myaddr.l.google.com:ns1.google.com:TXT
+      myip.opendns.com:resolver1.opendns.com:$TYPE
+      whoami.akamai.net:ns1-1.akamaitech.net:$TYPE
+      o-o.myaddr.l.google.com:ns2.google.com:TXT
+      myip.opendns.com:resolver2.opendns.com:$TYPE
+      o-o.myaddr.l.google.com:ns3.google.com:TXT
+      myip.opendns.com:resolver3.opendns.com:$TYPE
+      o-o.myaddr.l.google.com:ns4.google.com:TXT
+      myip.opendns.com:resolver4.opendns.com:$TYPE
+    "
+    for ENTRY in $RESOLVERS; do
+      IFS=':' read -r OWN_HOSTNAME RESOLVER DNS_RECORD <<< "$ENTRY"
+      IP46=$(dig -$TYPE +short $DNS_RECORD $OWN_HOSTNAME @$RESOLVER)
+      if [ $? -eq 0 ]; then
+	break
+      fi
+      logStatus "notice" "Failed to obtain current IPV$TYPE address using $RESOLVER"
+    done
+    IP46=${IP46//\"/}
+    IP46=`echo "$IP46" | tr '{[:upper:]' '{[:lower:]}'`
+    IP46=$(expandIPV6 $IP46)
+    if [[ ! $IP46 =~ ${REGEXP[$TYPE]} ]]; then
+      logStatus "error" "Failed to obtain current IPV$TYPE address"
+      exit 3
+    fi
+    if [ $VERBOSE = "true" ]; then
+      IP[$TYPE]=$IP46
+      echo "Found current public IPV$TYPE: $IP46"
+    fi
+  else IP[$TYYPE]="${OPTIP[$TYPE]}"
   fi
-  if [ $VERBOSE = "true" ]; then
-    echo "Found current public IP: $IP"
-  fi
-else IP="$OPTIP"
-fi
-
+done
 
 function submitApiRequest {
   local KEY=$1
@@ -289,56 +322,28 @@ function submitApiRequest {
 }
 
 function listRecord {
-  local KEY=$1
-  local RECORD=$2
+  local TYPE=$1
 
   # See whether there is already a record for this domain
 
-  local LIST_RESP=`submitApiRequest $KEY dns-list_records type=A\&editable=1`
-
-  if [ $? -ne 0 ]; then
-    logStatus "notice" "Error Listing Records: $LIST_RESP"
+  if [ ! "${RECORDS[$TYPE]}" ]; then
+    logStatus "notice" "No IPV$TYPE Records"
     return 1
   fi
 
-  local CLEANED_RECORD=`echo $RECORD | sed "s/[*]/[*]/g ; s/[.]/[.]/g "` 
-  local CURRENT_RECORD=`printf "$LIST_RESP" | grep "\s$CLEANED_RECORD\sA"`
+  local OLD_VALUE=`printf "${RECORDS[$TYPE]}" | awk '{print tolower($5) }'`
+  OLD_VALUE=$(expandIPV6 $OLD_VALUE)
 
-  if [ $? -ne 0 ]; then
-    logStatus "error" "Record not found"
-    return 0
-  fi
-
-  local OLD_VALUE=`printf "$CURRENT_RECORD" | awk '{print $5 }'`
-
-  echo "Found current record: $OLD_VALUE"
+  echo "Found current IPV$TYPE record: $OLD_VALUE"
 
 }
 
 function deleteRecord {
-  local KEY=$1
-  local RECORD=$2
-  local NEW_VALUE=$3
+  local TYPE=$1
+  local NEW_VALUE=$2
 
-  # See whether there is already a record for this domain
-
-  local LIST_RESP=`submitApiRequest $KEY dns-list_records type=A\&editable=1`
-  if [ $? -ne 0 ]; then
-    logStatus "notice" "Error Listing Records: $LIST_RESP"
-    return 1
-  fi
-
-  local CLEANED_RECORD=`echo $RECORD | sed "s/[*]/[*]/g ; s/[.]/[.]/g "` 
-  local CURRENT_RECORD=`echo $LIST_RESP | egrep -o "\s$CLEANED_RECORD\s+A\s+[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}"`
-  if [ $VERBOSE = "true" ]; then
-    echo "Current Record: $CURRENT_RECORD"
-  fi
-  if [ $? -ne 0 ]; then
-    logStatus "error" "Record not found"
-    return 0
-  fi
-
-  local OLD_VALUE=`echo $CURRENT_RECORD | awk '{print $3 }'`
+  local OLD_VALUE=`echo ${RECORDS[$TYPE]} | awk '{print tolower($5) }'`
+  OLD_VALUE=$(expandIPV6 $OLD_VALUE)
 
   if [ "$OLD_VALUE" == "$NEW_VALUE" ]; then
     # The current record is up to date, so we don't need to do anything
@@ -349,7 +354,7 @@ function deleteRecord {
 
   submitApiRequest $KEY \
                    dns-remove_record \
-                   record=$RECORD\&type=A\&value=$OLD_VALUE
+                   record=$RECORD\&type=${TYPES[$TYPE]}\&value=$OLD_VALUE
 
   if [ $? -ne 0 ]; then
     logStatus "error" "Unable to Remove Existing Record"
@@ -359,62 +364,93 @@ function deleteRecord {
   fi
 }
 
+
 function addRecord {
-  local KEY=$1
-  local RECORD=$2
-  local IP=$3
+  local TYPE=$1
+  local KEY=$2
+  local RECORD=$3
+  local IP=$4
 
   submitApiRequest $KEY \
                    dns-add_record \
-                   record=$RECORD\&type=A\&value=$IP
+                   record=$RECORD\&type=${TYPES[$TYPE]}\&value=$IP
+}
+
+# dreamhost returns all records, disregarding any type or editable args!
+
+function listRecords {
+  local KEY=$1
+  local RECORD=$2
+
+  local LIST_RESP=`submitApiRequest $KEY dns-list_records`
+
+  if [ $? -ne 0 ]; then
+    logStatus "notice" "Error Listing Records: $LIST_RESP"
+    exit 1
+  fi
+
+  local CLEANED_RECORD=`echo $RECORD | sed "s/[*]/[*]/g ; s/[.]/[.]/g "`
+  for TYPE in 4 6; do
+    RECORDS[$TYPE]=`printf "$LIST_RESP" | grep "\s$CLEANED_RECORD\s${TYPES[$TYPE]}\s${REGEXP[$TYPE]}"`
+  done
+
 }
 
 # -------------------------------
 # Main execution
 
-if [ "$LISTONLY" == "true" ]; then
+listRecords $KEY $RECORD
 
-  # We're just getting the current record
-  
-  listRecord $KEY $RECORD
-
-  if [ $? -ne 0 ]; then
-    # Something is wrong
-    logStatus "error" "ERROR $?"
-    exit $?
+for TYPE in 4 6; do
+  if [ ! "${RECORDS[$TYPE]}" ]; then
+    logStatus "notice" "No IPV$TYPE Records"
+    continue
   fi
 
-else
+  if [ "$LISTONLY" == "true" ]; then
 
-  # We're updating the record
+    # We're just getting the current record
 
-  # Delete any existing record for this domain
-  deleteRecord $KEY $RECORD $IP
+    listRecord $TYPE
 
-  if [ $? -eq 255 ]; then
-    logStatus "notice" "Record up to date"
-    exit 0
-  fi
+    if [ $? -ne 0 ]; then
+      # Something is wrong
+      logStatus "error" "ERROR $?"
+      exit $?
+    fi
 
-  if [ $? -ne 0 ]; then
-    # Something is wrong
-    logStatus "error" "ERROR $?"
-    exit $?
-  fi
-
-  # Add the new record
-
-  addRecord $KEY $RECORD $IP
-  if [ $? -ne 0 ]; then
-    logStatus "alert" "Failed to add new record"
-    # In this case, if we have deleted the record, then you will no longer
-    # have a DNS record for this domain.
-    exit 4
   else
-    logStatus "notice" "Record updated succesfully"
-  fi
 
-fi
+    # We're updating the record
+
+    # Delete any existing record for this domain
+    deleteRecord $TYPE ${IP[$TYPE]}
+
+    if [ $? -eq 255 ]; then
+      logStatus "notice" "IPV$TYPE Record up to date"
+      continue
+    fi
+
+    if [ $? -ne 0 ]; then
+      # Something is wrong
+      logStatus "error" "ERROR $?"
+      continue
+    fi
+
+    # Add the new record
+
+    addRecord $TYPE $KEY $RECORD ${IP[$TYPE]}
+    if [ $? -ne 0 ]; then
+      logStatus "alert" "Failed to add new record"
+      # In this case, if we have deleted the record, then you will no longer
+      # have a DNS record for this domain.
+      continue
+    else
+      logStatus "notice" "Record updated succesfully"
+    fi
+
+  fi
+done
 
 # Woohoo! We're exiting cleanly
 exit 0
