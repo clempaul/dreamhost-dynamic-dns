@@ -302,7 +302,7 @@ function listRecord {
   fi
 
   local CLEANED_RECORD=`echo $RECORD | sed "s/[*]/[*]/g ; s/[.]/[.]/g "` 
-  local CURRENT_RECORD=`printf "$LIST_RESP" | grep "\s$CLEANED_RECORD\sA"`
+  local CURRENT_RECORD=`printf "$LIST_RESP" | grep "\s$CLEANED_RECORD\sA\n"`
 
   if [ $? -ne 0 ]; then
     logStatus "error" "Record not found"
