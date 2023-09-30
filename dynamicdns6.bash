@@ -14,7 +14,7 @@
 CONFIG="$HOME/.config/dynamicdns"
 
 function usage {
-  echo 'usage:  ' `basename $0` '[-Sdv][-k API Key] [-r Record] [-i New IP Address] [-L Logging (true/false)]'
+  echo 'usage:  ' `basename $0` '[-Sdv][-k API Key] [-r Record] [-i New IPv6 Address] [-L Logging (true/false)]'
 }
 
 function createConfigurationFile {
@@ -134,7 +134,7 @@ do
     ;;
 
     i)
-    if [[ $OPTARG =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]];
+    if [[ $OPTARG =~ ^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$ ]];
     then
       OPTIP=$OPTARG
     else
@@ -241,14 +241,14 @@ if [ ! -n "$OPTIP" ]; then
   '
   for ENTRY in $RESOLVERS; do
     IFS=':' read -r OWN_HOSTNAME RESOLVER DNS_RECORD <<< "$ENTRY"
-    IP=$(dig -4 +short $DNS_RECORD $OWN_HOSTNAME @$RESOLVER)
+    IP=$(dig -6 +short $DNS_RECORD $OWN_HOSTNAME @$RESOLVER)
     if [ $? -eq 0 ]; then
       break
     fi
     logStatus "notice" "Failed to obtain current IP address using $RESOLVER"
   done
   IP=${IP//\"/}
-  if [[ ! $IP =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+	if [[ ! $IP =~ ^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$ ]]; then
     logStatus "error" "Failed to obtain current IP address"
     exit 3
   fi
@@ -294,7 +294,7 @@ function listRecord {
 
   # See whether there is already a record for this domain
 
-  local LIST_RESP=`submitApiRequest $KEY dns-list_records type=A\&editable=1`
+  local LIST_RESP=`submitApiRequest $KEY dns-list_records type=AAAA\&editable=1`
 
   if [ $? -ne 0 ]; then
     logStatus "notice" "Error Listing Records: $LIST_RESP"
@@ -302,7 +302,7 @@ function listRecord {
   fi
 
   local CLEANED_RECORD=`echo $RECORD | sed "s/[*]/[*]/g ; s/[.]/[.]/g "` 
-  local CURRENT_RECORD=`printf "$LIST_RESP" | grep "\s$CLEANED_RECORD\sA\n"`
+  local CURRENT_RECORD=`printf "$LIST_RESP" | grep "\s$CLEANED_RECORD\sAAAA\n"`
 
   if [ $? -ne 0 ]; then
     logStatus "error" "Record not found"
@@ -322,14 +322,14 @@ function deleteRecord {
 
   # See whether there is already a record for this domain
 
-  local LIST_RESP=`submitApiRequest $KEY dns-list_records type=A\&editable=1`
+  local LIST_RESP=`submitApiRequest $KEY dns-list_records type=AAAA\&editable=1`
   if [ $? -ne 0 ]; then
     logStatus "notice" "Error Listing Records: $LIST_RESP"
     return 1
   fi
 
   local CLEANED_RECORD=`echo $RECORD | sed "s/[*]/[*]/g ; s/[.]/[.]/g "` 
-  local CURRENT_RECORD=`echo $LIST_RESP | egrep -o "\s$CLEANED_RECORD\s+A\s+[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}"`
+	local CURRENT_RECORD=`echo $LIST_RESP | egrep -o "\s$CLEANED_RECORD\s+AAAA\s+([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}"`
   if [ $VERBOSE = "true" ]; then
     echo "Current Record: $CURRENT_RECORD"
   fi
@@ -349,7 +349,7 @@ function deleteRecord {
 
   submitApiRequest $KEY \
                    dns-remove_record \
-                   record=$RECORD\&type=A\&value=$OLD_VALUE
+                   record=$RECORD\&type=AAAA\&value=$OLD_VALUE
 
   if [ $? -ne 0 ]; then
     logStatus "error" "Unable to Remove Existing Record"
@@ -366,7 +366,7 @@ function addRecord {
 
   submitApiRequest $KEY \
                    dns-add_record \
-                   record=$RECORD\&type=A\&value=$IP
+                   record=$RECORD\&type=AAAA\&value=$IP
 }
 
 # -------------------------------
