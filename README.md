@@ -71,5 +71,5 @@ TODO
 - Allow disabling of error logging
 - Add verbose mode
 
-[panel]: https://panel.dreamhost.com/=======
+[panel]: https://panel.dreamhost.com/?tree=home.api
 
