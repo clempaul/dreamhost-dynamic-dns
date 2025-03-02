@@ -230,14 +230,11 @@ if [ ! -n "$OPTIP" ]; then
   # Try multiple resolvers (in case they don't respond)
   RESOLVERS='
     o-o.myaddr.l.google.com:ns1.google.com:TXT
-    myip.opendns.com:resolver1.opendns.com:A
-    whoami.akamai.net:ns1-1.akamaitech.net:A
+    myip.opendns.com:resolver1.opendns.com:AAAA
     o-o.myaddr.l.google.com:ns2.google.com:TXT
-    myip.opendns.com:resolver2.opendns.com:A
+    myip.opendns.com:resolver2.opendns.com:AAAA
     o-o.myaddr.l.google.com:ns3.google.com:TXT
-    myip.opendns.com:resolver3.opendns.com:A
     o-o.myaddr.l.google.com:ns4.google.com:TXT
-    myip.opendns.com:resolver4.opendns.com:A
   '
   for ENTRY in $RESOLVERS; do
     IFS=':' read -r OWN_HOSTNAME RESOLVER DNS_RECORD <<< "$ENTRY"
@@ -248,7 +245,7 @@ if [ ! -n "$OPTIP" ]; then
     logStatus "notice" "Failed to obtain current IP address using $RESOLVER"
   done
   IP=${IP//\"/}
-	if [[ ! $IP =~ ^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$ ]]; then
+	if [[ ! $IP =~ ^([0-9a-fA-F]{1,4}::?){0,8}([0-9a-fA-F]{1,4}:?){0,7}$ ]]; then
     logStatus "error" "Failed to obtain current IP address"
     exit 3
   fi
@@ -277,7 +274,9 @@ function submitApiRequest {
   local RC=$?
 
   # Output response
-  printf "$RESPONSE"
+  if [ $VERBOSE = "true" ]; then
+    printf "API Response: $RESPONSE\n"
+  fi
 
   if [ $RC -ne 0 ]; then
     logStatus "notice" "API Request Failed"
