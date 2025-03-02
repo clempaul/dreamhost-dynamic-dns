@@ -187,6 +187,21 @@ if [ $VERBOSE = "true" ]; then
   echo "Post process set to: $POSTPROCESS"
 fi
 
+OS_PREREQS=(uuidgen grep egrep awk sed dig)
+
+NOT_FOUND=()
+for cmd in "${OS_PREREQS[@]}"; do
+  if [ ! "$(which $cmd)" ]; then
+    NOT_FOUND+=($cmd)
+  fi
+done
+
+if [ ${#NOT_FOUND[@]} -gt 0 ]; then
+  echo `basename $0` "ERROR: Missing Depenencies: ${NOT_FOUND[*]}"
+  logStatus "error" "Missing Dependencies: ${NOT_FOUND[*]}"
+  exit 1
+fi
+
 if [ ! -n "$OPTKEY" ]; then
   if [ ! -n "$KEY" ]; then
     echo `basename $0` ": missing parameter -- KEY"
