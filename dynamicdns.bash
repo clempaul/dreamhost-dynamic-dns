@@ -11,21 +11,22 @@
 # Additional changes and updates as noted via https://github.com/jgabello/dreamhost-dynamic-dns Copyright (c) 2014, Contributing Author
 # See LICENSE for more details.
 
-CONFIG="$HOME/.config/dynamicdns"
+CONFIG_DIR="${XDG_CONFIG_HOME:=$HOME/.config}/dreamhost-dynamicdns" && mkdir -p $CONFIG_DIR && chmod 0700 $CONFIG_DIR
+CONFIG_FILE="$CONFIG_DIR/config.sh"
+
+if [ -f $HOME/.config/dynamicdns ]; then
+  echo "Migrating to new config location."
+  mv $HOME/.config/dynamicdns $CONFIG_FILE
+fi
 
 function usage {
   echo 'usage:  ' `basename $0` '[-Sdv][-k API Key] [-r Record] [-i New IP Address] [-L Logging (true/false)]'
 }
 
 function createConfigurationFile {
-
-  if [ ! -d $HOME/.config ]; then
-    echo "$HOME/.config/ does not exist, creating directory."
-    mkdir $HOME/.config
-  fi
-
   umask 077
-echo -n '# Dreamhost Dynamic DNS Updater Configuration file.  This file
+  cat << EOF > $CONFIG_FILE
+# Dreamhost Dynamic DNS Updater Configuration file.  This file
 # allows you to set the basic parameters to update Dreamhost
 # dynamic dns without command line options.
 # There are three basic parameters:
@@ -53,9 +54,9 @@ RECORD=
 #
 
 LOGGING=true
-' > "$CONFIG"
+EOF
 
-return 0
+  return 0
 }
 
 function logStatus {
@@ -78,21 +79,21 @@ function logStatus {
 
 function saveConfiguration {
   if [ -n "$1" ]; then
-    sed -i -e "s/^KEY=.*$/KEY=$1/" "$CONFIG"
+    sed -i -e "s/^KEY=.*$/KEY=$1/" "$CONFIG_FILE"
     if [ $VERBOSE = "true" ]; then
       echo "Saving KEY to configuration file"
     fi
   fi
 
   if [ -n "$2" ]; then
-    sed -i -e "s/^RECORD=.*$/RECORD=$2/" "$CONFIG"
+    sed -i -e "s/^RECORD=.*$/RECORD=$2/" "$CONFIG_FILE"
     if [ $VERBOSE = "true" ]; then
       echo "Saving RECORD to configuration file"
     fi
 
   fi
   if [ -n "$3" ]; then
-    sed -i -e "s/^LOGGING=.*$/LOGGING=$3/" "$CONFIG"
+    sed -i -e "s/^LOGGING=.*$/LOGGING=$3/" "$CONFIG_FILE"
     if [ $VERBOSE = "true" ]; then
       echo "Saving LOGGING to configuration file"
     fi
@@ -162,14 +163,14 @@ done
 
 #Check for Configuration File
 
-if [ ! -f ~/.config/dynamicdns ]; then
+if [ ! -f $CONFIG_FILE ]; then
   logStatus "notice" "Configuration File Not Found. Creating new configuration file."
   createConfigurationFile
 fi
 
 # Load Configuration File
 
-source ~/.config/dynamicdns
+source $CONFIG_FILE
 
 # check for dependencies, if wget not available, test for curl, set variable to be used to test this later
 if command -v wget >/dev/null 2>&1; then
