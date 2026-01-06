@@ -1,0 +1,11 @@
+[Unit]
+Description=Run dreamhost-dynamic-dns service at boot and every 12 hours
+Wants=network-online.target
+After=network-online.target
+
+[Timer]
+OnBootSec=60s
+OnUnitActiveSec=12h
+
+[Install]
+WantedBy=timers.target
