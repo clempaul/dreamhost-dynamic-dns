@@ -1,9 +1,10 @@
 #!/bin/bash
 
 NEWUSER="dreamhostdns"
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
-if [ ! -x /usr/local/bin/dynamicdns.bash ]; then
-  echo "Error: Can't find executable at /usr/local/bin/dynamicdns.bash"
+if ! cmp "$SCRIPT_DIR"/../dynamicdns.bash /usr/local/bin/dynamicdns.bash ; then
+  echo "Error: /usr/local/bin/dynamicdns.bash differs from this version"
   echo "Exiting"
   exit 1
 fi
