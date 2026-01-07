@@ -35,6 +35,8 @@ sudo systemctl daemon-reload
 
 read -r -p "About to run 'sudo systemctl enable dreamhost-dynamic-dns.timer', press Ctrl-C to abort"
 sudo systemctl enable dreamhost-dynamic-dns.timer
+read -r -p "About to run 'sudo systemctl start dreamhost-dynamic-dns.timer', press Ctrl-C to abort"
+sudo systemctl start dreamhost-dynamic-dns.timer
 
 echo "Installed systemd service. Run 'systemctl list-timers --all' to check"
 
