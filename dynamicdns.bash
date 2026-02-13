@@ -11,21 +11,21 @@
 # Additional changes and updates as noted via https://github.com/jgabello/dreamhost-dynamic-dns Copyright (c) 2014, Contributing Author
 # See LICENSE for more details.
 
-CONFIG_DIR="${XDG_CONFIG_HOME:=$HOME/.config}/dreamhost-dynamicdns" && mkdir -p $CONFIG_DIR && chmod 0700 $CONFIG_DIR
+CONFIG_DIR="${XDG_CONFIG_HOME:=$HOME/.config}/dreamhost-dynamicdns" && mkdir -p "$CONFIG_DIR" && chmod 0700 "$CONFIG_DIR"
 CONFIG_FILE="$CONFIG_DIR/config.sh"
 
-if [ -f $HOME/.config/dynamicdns ]; then
+if [ -f "$HOME/.config/dynamicdns" ]; then
   echo "Migrating to new config location."
-  mv $HOME/.config/dynamicdns $CONFIG_FILE
+  mv "$HOME/.config/dynamicdns" "$CONFIG_FILE"
 fi
 
 function usage {
-  echo 'usage:  ' `basename $0` '[-Sdv][-k API Key] [-r Record] [-i New IP Address] [-L Logging (true/false)]'
+  echo 'usage:  ' "$(basename "$0")" '[-Sdv][-k API Key] [-r Record] [-i New IP Address] [-L Logging (true/false)]'
 }
 
 function createConfigurationFile {
   umask 077
-  cat << EOF > $CONFIG_FILE
+  cat << EOF > "$CONFIG_FILE"
 # Dreamhost Dynamic DNS Updater Configuration file.  This file
 # allows you to set the basic parameters to update Dreamhost
 # dynamic dns without command line options.
@@ -63,16 +63,16 @@ function logStatus {
   local LEVEL=$1
   local MESSAGE=$2
   if [ "$LOGGING" = "true" ]; then
-    if [ $LEVEL = "error" ]; then
-      logger -p syslog.err -t `basename $0` "$MESSAGE"
-    elif [ $LEVEL = "notice" ]; then
-      logger -p syslog.notice -t `basename $0` "$MESSAGE"
-    elif [ $LEVEL = "alert" ]; then
-      logger -p syslog.alert -t `basename $0` "$MESSAGE"
+    if [ "$LEVEL" = "error" ]; then
+      logger -p syslog.err -t "$(basename "$0")" "$MESSAGE"
+    elif [ "$LEVEL" = "notice" ]; then
+      logger -p syslog.notice -t "$(basename "$0")" "$MESSAGE"
+    elif [ "$LEVEL" = "alert" ]; then
+      logger -p syslog.alert -t "$(basename "$0")" "$MESSAGE"
     fi
   fi
   if [ $VERBOSE = "true" ]; then
-    echo `basename $0` "$MESSAGE"
+    echo "$(basename "$0")" "$MESSAGE"
   fi
   return 0
 }
@@ -108,8 +108,8 @@ while getopts "L:i:k:r:Sdvl" OPTS
 do
   case $OPTS in
     L)
-    if ! ([ "$OPTARG" == "true" ] || [ "$OPTARG" == "false" ])  ; then
-      echo `basename $0` " Invalid Parameters -- L"
+    if [ "$OPTARG" != "true" ] && [ "$OPTARG" != "false" ]; then
+      echo "$(basename "$0")" " Invalid Parameters -- L"
       logStatus "error" "Invalid Parameters -- L"
       usage
       exit 1
@@ -139,7 +139,7 @@ do
     then
       OPTIP=$OPTARG
     else
-      echo `basename $0` " Invalid Parameters -- i"
+      echo "$(basename "$0")" " Invalid Parameters -- i"
       logStatus "error" "Invalid Parameters -- i"
       usage
       exit 1
@@ -163,14 +163,14 @@ done
 
 #Check for Configuration File
 
-if [ ! -f $CONFIG_FILE ]; then
+if [ ! -f "$CONFIG_FILE" ]; then
   logStatus "notice" "Configuration File Not Found. Creating new configuration file."
   createConfigurationFile
 fi
 
 # Load Configuration File
-
-source $CONFIG_FILE
+# shellcheck disable=SC1090
+source "$CONFIG_FILE"
 
 # check for dependencies, if wget not available, test for curl, set variable to be used to test this later
 if command -v wget >/dev/null 2>&1; then
@@ -180,7 +180,7 @@ elif command -v curl >/dev/null 2>&1; then
   POSTPROCESS="curl"
 
 else
-  echo `basename $0` "ERROR: Missing dependency -- wget or curl"
+  echo "$(basename "$0")" "ERROR: Missing dependency -- wget or curl"
   logStatus "error" "Missing Dependency -- wget or curl"
   exit 1
 fi
@@ -192,20 +192,20 @@ OS_PREREQS=(uuidgen grep egrep awk sed dig)
 
 NOT_FOUND=()
 for cmd in "${OS_PREREQS[@]}"; do
-  if [ ! "$(which $cmd)" ]; then
-    NOT_FOUND+=($cmd)
+  if [ ! "$(which "$cmd")" ]; then
+    NOT_FOUND+=("$cmd")
   fi
 done
 
 if [ ${#NOT_FOUND[@]} -gt 0 ]; then
-  echo `basename $0` "ERROR: Missing Depenencies: ${NOT_FOUND[*]}"
+  echo "$(basename "$0")" "ERROR: Missing Depenencies: ${NOT_FOUND[*]}"
   logStatus "error" "Missing Dependencies: ${NOT_FOUND[*]}"
   exit 1
 fi
 
-if [ ! -n "$OPTKEY" ]; then
-  if [ ! -n "$KEY" ]; then
-    echo `basename $0` ": missing parameter -- KEY"
+if [ -z "$OPTKEY" ]; then
+  if [ -z "$KEY" ]; then
+    echo "$(basename "$0")" ": missing parameter -- KEY"
     logStatus "error" "Missing Parameter -- KEY"
     usage
     exit 1
@@ -213,9 +213,9 @@ if [ ! -n "$OPTKEY" ]; then
 else KEY="$OPTKEY"
 fi
 
-if [ ! -n "$OPTRECORD" ]; then
-  if [ ! -n "$RECORD" ]; then
-    echo `basename $0` ": missing parameter -- RECORD"
+if [ -z "$OPTRECORD" ]; then
+  if [ -z "$RECORD" ]; then
+    echo "$(basename "$0")" ": missing parameter -- RECORD"
     logStatus "error" "Missing Parameter -- RECORD"
     usage
    exit 1
@@ -239,7 +239,7 @@ if [ "$SAVEONLY" == "true" ]; then
   exit 0
 fi
 
-if [ ! -n "$OPTIP" ]; then
+if [ -z "$OPTIP" ]; then
   if [ $VERBOSE = "true" ]; then
     echo "No IP Address provided, obtaining public IP"
   fi
@@ -257,8 +257,7 @@ if [ ! -n "$OPTIP" ]; then
   '
   for ENTRY in $RESOLVERS; do
     IFS=':' read -r OWN_HOSTNAME RESOLVER DNS_RECORD <<< "$ENTRY"
-    IP=$(dig -4 +short $DNS_RECORD $OWN_HOSTNAME @$RESOLVER)
-    if [ $? -eq 0 ]; then
+    if IP=$(dig -4 +short "$DNS_RECORD" "$OWN_HOSTNAME" @"$RESOLVER"); then
       break
     fi
     logStatus "notice" "Failed to obtain current IP address using $RESOLVER"
@@ -280,28 +279,37 @@ function submitApiRequest {
   local CMD=$2
   local ARGS=$3
 
+  if [ $VERBOSE = "true" ]; then
+    #Only print to stderr since stdout here is parsed by calling functions.
+    printf 'In submitApiRequest: CMD=%s\n' "$CMD" >&2
+  fi
   # Send request
+  local RESPONSE
   if [ $POSTPROCESS = "wget" ]; then
-      local RESPONSE=$(wget -O- -q https://api.dreamhost.com/ \
-        --post-data key=$KEY\&unique_id=$(uuidgen)\&cmd=$CMD\&$ARGS )
+    if [ $VERBOSE = "true" ]; then
+      #Only print to stderr since stdout here is parsed by calling functions.
+      printf 'In submitApiRequest: wget -O- -q https://api.dreamhost.com --post-data "key=%s&unique_id=%s&cmd=%s&%s\n' "$KEY" "$(uuidgen)" "$CMD" "$ARGS" >&2
+    fi
+    RESPONSE=$(wget -O- -q https://api.dreamhost.com/ \
+      --post-data "key=$KEY&unique_id=$(uuidgen)&cmd=$CMD&$ARGS" )
   elif [ $POSTPROCESS = "curl" ]; then
-    local RESPONSE=$(curl -s --data "key=$KEY&unique_id=$(uuidgen)&cmd=$CMD&$ARGS" https://api.dreamhost.com/)
+    RESPONSE=$(curl -s --data "key=$KEY&unique_id=$(uuidgen)&cmd=$CMD&$ARGS" https://api.dreamhost.com/)
   else
     logStatus "error" "Missing Dependency -- wget or curl"
     exit 1
   fi
   local RC=$?
 
-  # Output response
-  printf "$RESPONSE"
+  # Output Response
+  printf '%s\n' "$RESPONSE"
 
   if [ $RC -ne 0 ]; then
     logStatus "notice" "API Request Failed"
     return $?
   fi
 
-  # If "success" is not in the response, then the request failed
-  printf "$RESPONSE" | grep "^success$" > /dev/null
+  # If "success" is not the response, then the request failed. Return the following
+  echo "$RESPONSE" | grep -q "^success$"
 }
 
 function listRecord {
@@ -309,52 +317,66 @@ function listRecord {
   local RECORD=$2
 
   # See whether there is already a record for this domain
+  # Note: If in double quotes don't escape ampersandi (e.g. "a=b&", if out of quotes do (e.g. a=b\&)
 
-  local LIST_RESP=`submitApiRequest $KEY dns-list_records type=A\&editable=1`
-
-  if [ $? -ne 0 ]; then
+  local LIST_RESP
+  if ! LIST_RESP=$(submitApiRequest "$KEY" dns-list_records type=A\&editable=1); then
     logStatus "notice" "Error Listing Records: $LIST_RESP"
     return 1
   fi
 
-  local CLEANED_RECORD=`echo $RECORD | sed "s/[*]/[*]/g ; s/[.]/[.]/g "` 
-  local CURRENT_RECORD=`printf "$LIST_RESP" | grep "\s$CLEANED_RECORD\sA\n"`
+  local CLEANED_RECORD
+  CLEANED_RECORD=$(echo "$RECORD" | sed "s/[*]/[*]/g ; s/[.]/[.]/g ")
 
-  if [ $? -ne 0 ]; then
-    logStatus "error" "Record not found"
+  local CURRENT_RECORD
+  if ! CURRENT_RECORD=$(echo "$LIST_RESP" | grep "\s$CLEANED_RECORD\sA\n"); then
+    logStatus "error" "Record '$CLEANED_RECORD' not found"
     return 0
   fi
 
-  local OLD_VALUE=`printf "$CURRENT_RECORD" | awk '{print $5 }'`
+  local OLD_VALUE
+  OLD_VALUE=$(echo "$CURRENT_RECORD" | awk '{print $5 }')
 
   echo "Found current record: $OLD_VALUE"
-
+  return 0
 }
 
 function deleteRecord {
   local KEY=$1
   local RECORD=$2
   local NEW_VALUE=$3
+  if [ $VERBOSE = "true" ]; then
+    echo "In deleteRecord: RECORD=$RECORD"
+    echo "In deleteRecord: NEW_VALUE=$NEW_VALUE"
+  fi
 
   # See whether there is already a record for this domain
 
-  local LIST_RESP=`submitApiRequest $KEY dns-list_records type=A\&editable=1`
-  if [ $? -ne 0 ]; then
+  local LIST_RESP
+  if ! LIST_RESP=$(submitApiRequest "$KEY" dns-list_records type=A\&editable=1); then
     logStatus "notice" "Error Listing Records: $LIST_RESP"
     return 1
   fi
 
-  local CLEANED_RECORD=`echo $RECORD | sed "s/[*]/[*]/g ; s/[.]/[.]/g "` 
-  local CURRENT_RECORD=`echo $LIST_RESP | egrep -o "\s$CLEANED_RECORD\s+A\s+[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}"`
+  local CLEANED_RECORD
+  CLEANED_RECORD=$(echo "$RECORD" | sed "s/[*]/[*]/g ; s/[.]/[.]/g ")
   if [ $VERBOSE = "true" ]; then
-    echo "Current Record: $CURRENT_RECORD"
+    #print to stderr
+    printf 'Cleaned Record: %s\n' "$CLEANED_RECORD" >&2
   fi
-  if [ $? -ne 0 ]; then
+
+  local CURRENT_RECORD
+  if ! CURRENT_RECORD=$(echo "$LIST_RESP" | grep -E -o "\s$CLEANED_RECORD\s+A\s+[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}"); then
     logStatus "error" "Record not found"
     return 0
   fi
+  if [ $VERBOSE = "true" ]; then
+    #print to stderr
+    printf 'Current Record: %s\n' "$CURRENT_RECORD" >&2
+  fi
 
-  local OLD_VALUE=`echo $CURRENT_RECORD | awk '{print $3 }'`
+  local OLD_VALUE
+  OLD_VALUE=$(echo "$CURRENT_RECORD" | awk '{print $3 }')
 
   if [ "$OLD_VALUE" == "$NEW_VALUE" ]; then
     # The current record is up to date, so we don't need to do anything
@@ -363,12 +385,13 @@ function deleteRecord {
 
   # We need to remove the existing record to continue
 
-  submitApiRequest $KEY \
-                   dns-remove_record \
-                   record=$RECORD\&type=A\&value=$OLD_VALUE
-
-  if [ $? -ne 0 ]; then
+  if [ $VERBOSE = "true" ]; then
+    #Only print to stderr since this function's stdout value is used.
+    printf 'About to delete Old Value: %s\n' "$OLD_VALUE" >&2
+  fi
+  if ! submitApiRequest "$KEY" dns-remove_record "record=$RECORD&type=A&value=$OLD_VALUE"; then
     logStatus "error" "Unable to Remove Existing Record"
+    printf 'Error: Unable to Remove Old Value: %s\n' "$OLD_VALUE" >&2
     return 2
   else
     return 0
@@ -380,9 +403,10 @@ function addRecord {
   local RECORD=$2
   local IP=$3
 
-  submitApiRequest $KEY \
+  #the return value from submitApiRequest is the return value here
+  submitApiRequest "$KEY" \
                    dns-add_record \
-                   record=$RECORD\&type=A\&value=$IP
+                   "record=$RECORD&type=A&value=$IP"
 }
 
 # -------------------------------
@@ -391,10 +415,8 @@ function addRecord {
 if [ "$LISTONLY" == "true" ]; then
 
   # We're just getting the current record
-  
-  listRecord $KEY $RECORD
 
-  if [ $? -ne 0 ]; then
+  if ! listRecord "$KEY" "$RECORD"; then
     # Something is wrong
     logStatus "error" "ERROR $?"
     exit $?
@@ -405,23 +427,23 @@ else
   # We're updating the record
 
   # Delete any existing record for this domain
-  deleteRecord $KEY $RECORD $IP
+  deleteRecord "$KEY" "$RECORD" "$IP"
+  DELETE_STATUS=$?
 
-  if [ $? -eq 255 ]; then
+  if [ $DELETE_STATUS -eq 255 ]; then
     logStatus "notice" "Record up to date"
     exit 0
   fi
 
-  if [ $? -ne 0 ]; then
+  if [ $DELETE_STATUS -ne 0 ]; then
     # Something is wrong
-    logStatus "error" "ERROR $?"
-    exit $?
+    logStatus "error" "ERROR $DELETE_STATUS"
+    exit $DELETE_STATUS
   fi
 
   # Add the new record
 
-  addRecord $KEY $RECORD $IP
-  if [ $? -ne 0 ]; then
+  if ! addRecord "$KEY" "$RECORD" "$IP"; then
     logStatus "alert" "Failed to add new record"
     # In this case, if we have deleted the record, then you will no longer
     # have a DNS record for this domain.
