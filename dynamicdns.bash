@@ -456,10 +456,7 @@ function listRecord {
     return 0
   fi
 
-  local OLD_VALUE
-  OLD_VALUE=$(echo "$CURRENT_RECORD" | awk '{print $5 }')
-
-  echo "Found current record: $OLD_VALUE"
+  echo "Found current record: $CURRENT_RECORD"
   return 0
 }
 
