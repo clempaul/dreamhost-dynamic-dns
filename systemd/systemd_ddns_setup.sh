@@ -3,15 +3,21 @@
 NEWUSER="dreamhostdns"
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
+if [ ! -x /usr/local/bin/dynamicdns.bash ]; then
+  echo "Error: Can't find executable at /usr/local/bin/dynamicdns.bash"
+  echo "Copy the file dynamicdns.bash there and re-run. Exiting"
+  exit 1
+fi
+
 if ! cmp "$SCRIPT_DIR"/../dynamicdns.bash /usr/local/bin/dynamicdns.bash ; then
   echo "Error: /usr/local/bin/dynamicdns.bash differs from this version"
   echo "Exiting"
   exit 1
 fi
 
-read -r -p "About to create user $NEWUSER, press Ctrl-C to abort"
+read -r -p "About to create user $NEWUSER, press Ctrl-C to abort. Enter to continue."
 
-
+#useradd will flag and report if a user already exists
 sudo useradd --system --no-create-home --shell /usr/sbin/nologin $NEWUSER
 USERADD_STATUS=$?
 
@@ -29,9 +35,9 @@ USER_HOME=$(eval echo ~$NEWUSER)
 sudo mkdir -p "$USER_HOME/.config/dreamhost-dynamicdns/"
 sudo chown -R $NEWUSER "$USER_HOME/.config/dreamhost-dynamicdns/"
 
-read -r -p "About to cp dreamhost-dynamic-dns.* files to /etc/systemd/system/, press Ctrl-C to abort"
-sudo cp dreamhost-dynamic-dns.service /etc/systemd/system/
-sudo cp dreamhost-dynamic-dns.timer /etc/systemd/system/
+read -r -p "About to cp $SCRIPT_DIR/dreamhost-dynamic-dns.* files to /etc/systemd/system/, press Ctrl-C to abort"
+sudo cp "$SCRIPT_DIR/dreamhost-dynamic-dns.service" /etc/systemd/system/
+sudo cp "$SCRIPT_DIR/dreamhost-dynamic-dns.timer" /etc/systemd/system/
 sudo systemctl daemon-reload
 
 read -r -p "About to run 'sudo systemctl enable dreamhost-dynamic-dns.timer', press Ctrl-C to abort"

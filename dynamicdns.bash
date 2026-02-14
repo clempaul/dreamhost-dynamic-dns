@@ -13,6 +13,9 @@
 
 CONFIG_DIR="${XDG_CONFIG_HOME:=$HOME/.config}/dreamhost-dynamicdns" && mkdir -p "$CONFIG_DIR" && chmod 0700 "$CONFIG_DIR"
 CONFIG_FILE="$CONFIG_DIR/config.sh"
+#Default to IPV4
+IP_TYPE="A"
+IP4_ONLY="false"
 
 if [ -f "$HOME/.config/dynamicdns" ]; then
   echo "Migrating to new config location."
@@ -20,8 +23,96 @@ if [ -f "$HOME/.config/dynamicdns" ]; then
 fi
 
 function usage {
-  echo 'usage:  ' "$(basename "$0")" '[-Sdv][-k API Key] [-r Record] [-i New IP Address] [-L Logging (true/false)]'
+  echo 'usage:  ' "$(basename "$0")" '[-Sdvlh46][-k API Key] [-r Record] [-i New IP Address] [-L Logging (true/false)]'
 }
+
+function help {
+  usage
+  cat << EOF
+  The options are as follows:
+
+    -S Save any options provided via the command line to the configuration file.
+
+    -d Save any options provided via the command line to the configuration file and do not update DNS.
+
+    -h this help text
+
+    -4 IPv4 only (Otherwise will try IPv4 first and then fall back to IPv6)
+
+    -6 IPv6 only. (Only use IPv6)
+
+    -v Enable verbose mode.
+
+    -l Enable list-only mode, showing only current value returned by the Dreamhost API.
+
+    -k API Key
+    Dreamhost API Key with dns-list_records, dns-remove_record, and dns-add_record permissions.
+
+    -r Record
+    The DNS Record to be updated.
+
+    -i IP Address
+    Specify the IPv4 Address to update the Record to.
+    If no address is specified, the utility will use dig to
+    obtain the current public IPv4 Address of your computer.
+
+    -L (true/false)
+    Enables system logging via the logger command. The configuration file sets logging to true by default.
+
+EOF
+}
+
+# Function to validate IPv4
+function is_ipv4 {
+    [[ $1 =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]
+}
+
+# Function to validate IPv6
+function is_ipv6 {
+    [[ $1 =~ ^([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}$ ]]
+}
+
+# Function to get IP from a given service and regex pattern
+function get_ip {
+  local this_IPV=$1
+  local this_IP_TYPE
+  if [[ "$this_IPV" == 4 ]]; then
+    this_IP_TYPE="A"
+  else
+    this_IP_TYPE="AAAA"
+  fi
+  if [ "$VERBOSE" = "true" ]; then
+    echo "No IP Address provided, obtaining public IP" >&2
+  fi
+  # Try multiple resolvers (in case they don't respond)
+  RESOLVERS="
+    o-o.myaddr.l.google.com:ns1.google.com:TXT
+    myip.opendns.com:resolver1.opendns.com:$this_IP_TYPE
+    whoami.akamai.net:ns1-1.akamaitech.net:$this_IP_TYPE
+    o-o.myaddr.l.google.com:ns2.google.com:TXT
+    myip.opendns.com:resolver2.opendns.com:$this_IP_TYPE
+    o-o.myaddr.l.google.com:ns3.google.com:TXT
+    myip.opendns.com:resolver3.opendns.com:$this_IP_TYPE
+    o-o.myaddr.l.google.com:ns4.google.com:TXT
+    myip.opendns.com:resolver4.opendns.com:$this_IP_TYPE
+  "
+
+  for ENTRY in $RESOLVERS; do
+    IFS=':' read -r OWN_HOSTNAME RESOLVER DNS_RECORD <<< "$ENTRY"
+    if [ "$VERBOSE" = "true" ]; then
+      echo "Running: dig -$this_IPV +short" "$DNS_RECORD" "$OWN_HOSTNAME" @"$RESOLVER" >&2
+    fi
+    if IP=$(dig -"$this_IPV" +short "$DNS_RECORD" "$OWN_HOSTNAME" @"$RESOLVER"); then
+      break
+    fi
+    logStatus "notice" "Failed to obtain current IP$this_IPV address using $RESOLVER"
+  done
+
+  IP=${IP//\"/}
+
+  echo "$IP"
+}
+
 
 function createConfigurationFile {
   umask 077
@@ -104,7 +195,7 @@ function saveConfiguration {
 VERBOSE="false"
 LISTONLY="false"
 #Get Command Line Options
-while getopts "L:i:k:r:Sdvl" OPTS
+while getopts "L:i:k:r:Sdvhl46" OPTS
 do
   case $OPTS in
     L)
@@ -116,6 +207,20 @@ do
     fi
 
     OPTLOGGING=$OPTARG
+    ;;
+
+    4)
+    IP_TYPE="A"
+    IP4_ONLY="true"
+    ;;
+
+    6)
+    IP_TYPE="AAAA"
+    ;;
+
+    h)
+    help
+    exit 0
     ;;
 
     v)
@@ -188,7 +293,7 @@ if [ $VERBOSE = "true" ]; then
   echo "Post process set to: $POSTPROCESS"
 fi
 
-OS_PREREQS=(uuidgen grep egrep awk sed dig)
+OS_PREREQS=(uuidgen grep awk sed dig)
 
 NOT_FOUND=()
 for cmd in "${OS_PREREQS[@]}"; do
@@ -240,39 +345,51 @@ if [ "$SAVEONLY" == "true" ]; then
 fi
 
 if [ -z "$OPTIP" ]; then
-  if [ $VERBOSE = "true" ]; then
-    echo "No IP Address provided, obtaining public IP"
-  fi
-  # Try multiple resolvers (in case they don't respond)
-  RESOLVERS='
-    o-o.myaddr.l.google.com:ns1.google.com:TXT
-    myip.opendns.com:resolver1.opendns.com:A
-    whoami.akamai.net:ns1-1.akamaitech.net:A
-    o-o.myaddr.l.google.com:ns2.google.com:TXT
-    myip.opendns.com:resolver2.opendns.com:A
-    o-o.myaddr.l.google.com:ns3.google.com:TXT
-    myip.opendns.com:resolver3.opendns.com:A
-    o-o.myaddr.l.google.com:ns4.google.com:TXT
-    myip.opendns.com:resolver4.opendns.com:A
-  '
-  for ENTRY in $RESOLVERS; do
-    IFS=':' read -r OWN_HOSTNAME RESOLVER DNS_RECORD <<< "$ENTRY"
-    if IP=$(dig -4 +short "$DNS_RECORD" "$OWN_HOSTNAME" @"$RESOLVER"); then
-      break
+  #Test for IP4 first unless the -6 flag is set (IPV6 only)
+  if [[ $IP_TYPE == "A" ]]; then
+    IP=$(get_ip 4)
+    if ! is_ipv4 "$IP"; then
+      #fallback to IP6? 
+      if [[ "$IP4_ONLY" == "true" ]]; then
+        logStatus "error" "Failed to obtain current IPv4 address. No fallback to IPv6"
+        exit 3
+      else
+        echo "Attempting IPv6 as IPv4 failed" >&2
+        IP_TYPE="AAAA"
+        IP=$(get_ip 6)
+        if ! is_ipv6 "$IP"; then
+          logStatus "error" "Failed to obtain current IPv4 OR IPv6 address"
+          exit 3
+        fi
+      fi
     fi
-    logStatus "notice" "Failed to obtain current IP address using $RESOLVER"
-  done
-  IP=${IP//\"/}
-  if [[ ! $IP =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
-    logStatus "error" "Failed to obtain current IP address"
-    exit 3
+  else
+    IP=$(get_ip 6)
+    if ! is_ipv6 "$IP"; then
+      logStatus "error" "Failed to obtain current IPv6 address"
+      exit 3
+    fi
   fi
   if [ $VERBOSE = "true" ]; then
-    echo "Found current public IP: $IP"
+    echo "Found current public IP: $IP" >&2
   fi
-else IP="$OPTIP"
+else
+  IP="$OPTIP"
 fi
 
+function findCurrentRecord {
+  local cleaned_record=$1
+  local list_resp=$2
+  local this_ip_type=$3
+  local this_current_record
+  if [[ $this_ip_type == "A" ]]; then
+    this_current_record=$(echo "$list_resp" | grep -E -o "\s$cleaned_record\s+$this_ip_type\s+[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}")
+  else
+    this_current_record=$(echo "$list_resp" | grep "\s$cleaned_record\s$this_ip_type\n")
+  fi
+  #Return the current record
+  printf '%s\n' "$this_current_record"
+}
 
 function submitApiRequest {
   local KEY=$1
@@ -320,7 +437,7 @@ function listRecord {
   # Note: If in double quotes don't escape ampersandi (e.g. "a=b&", if out of quotes do (e.g. a=b\&)
 
   local LIST_RESP
-  if ! LIST_RESP=$(submitApiRequest "$KEY" dns-list_records type=A\&editable=1); then
+  if ! LIST_RESP=$(submitApiRequest "$KEY" dns-list_records type=$IP_TYPE\&editable=1); then
     logStatus "notice" "Error Listing Records: $LIST_RESP"
     return 1
   fi
@@ -329,15 +446,17 @@ function listRecord {
   CLEANED_RECORD=$(echo "$RECORD" | sed "s/[*]/[*]/g ; s/[.]/[.]/g ")
 
   local CURRENT_RECORD
-  if ! CURRENT_RECORD=$(echo "$LIST_RESP" | grep "\s$CLEANED_RECORD\sA\n"); then
+  CURRENT_RECORD=$(findCurrentRecord "$CLEANED_RECORD" "$LIST_RESP" "$IP_TYPE")
+  if [ $VERBOSE = "true" ]; then
+    #print to stderr
+    printf 'Current Record: %s\n' "$CURRENT_RECORD" >&2
+  fi
+  if [[ "$CURRENT_RECORD" == "" ]]; then
     logStatus "error" "Record '$CLEANED_RECORD' not found"
     return 0
   fi
 
-  local OLD_VALUE
-  OLD_VALUE=$(echo "$CURRENT_RECORD" | awk '{print $5 }')
-
-  echo "Found current record: $OLD_VALUE"
+  echo "Found current record: $CURRENT_RECORD"
   return 0
 }
 
@@ -353,7 +472,7 @@ function deleteRecord {
   # See whether there is already a record for this domain
 
   local LIST_RESP
-  if ! LIST_RESP=$(submitApiRequest "$KEY" dns-list_records type=A\&editable=1); then
+  if ! LIST_RESP=$(submitApiRequest "$KEY" dns-list_records type=$IP_TYPE\&editable=1); then
     logStatus "notice" "Error Listing Records: $LIST_RESP"
     return 1
   fi
@@ -366,7 +485,12 @@ function deleteRecord {
   fi
 
   local CURRENT_RECORD
-  if ! CURRENT_RECORD=$(echo "$LIST_RESP" | grep -E -o "\s$CLEANED_RECORD\s+A\s+[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}"); then
+  CURRENT_RECORD=$(findCurrentRecord "$CLEANED_RECORD" "$LIST_RESP" "$IP_TYPE")
+  if [ $VERBOSE = "true" ]; then
+    #print to stderr
+    printf 'Current Record: %s\n' "$CURRENT_RECORD" >&2
+  fi
+  if [[ "$CURRENT_RECORD" == "" ]]; then
     logStatus "error" "Record not found"
     return 0
   fi
@@ -389,7 +513,7 @@ function deleteRecord {
     #Only print to stderr since this function's stdout value is used.
     printf 'About to delete Old Value: %s\n' "$OLD_VALUE" >&2
   fi
-  if ! submitApiRequest "$KEY" dns-remove_record "record=$RECORD&type=A&value=$OLD_VALUE"; then
+  if ! submitApiRequest "$KEY" dns-remove_record "record=$RECORD&type=$IP_TYPE&value=$OLD_VALUE"; then
     logStatus "error" "Unable to Remove Existing Record"
     printf 'Error: Unable to Remove Old Value: %s\n' "$OLD_VALUE" >&2
     return 2
@@ -406,12 +530,11 @@ function addRecord {
   #the return value from submitApiRequest is the return value here
   submitApiRequest "$KEY" \
                    dns-add_record \
-                   "record=$RECORD&type=A&value=$IP"
+                   "record=$RECORD&type=$IP_TYPE&value=$IP"
 }
 
 # -------------------------------
 # Main execution
-
 if [ "$LISTONLY" == "true" ]; then
 
   # We're just getting the current record
