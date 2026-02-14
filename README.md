@@ -38,7 +38,7 @@ A sample configuration file is found below.
 
 ## SYNOPSIS
 
-`*dynamicdns.bash* [-Sdv][-k API Key]
+`*dynamicdns.bash* [-Sdvlh46][-k API Key]
  [-r Record] [-i New IP Address] [-L Logging (true/false)]`
 
 ## DESCRIPTION
@@ -55,6 +55,9 @@ to the configuration file.
 and do not update DNS.  
 >__-v__ Enable verbose mode.  
 >__-l__ Enable list-only mode, showing only current value returned
+>__-h__ Help text
+>__-4__  IPv4 only (Otherwise will try IPv4 and then fall back to IPv6)
+>__-6__  IPv6 only mode.
 by the Dreamhost API.  
 >__-k__ *API Key*  
 Dreamhost API Key with dns-list\_records,
